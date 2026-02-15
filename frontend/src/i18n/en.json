@@ -1,0 +1,183 @@
+{
+    "common": {
+        "cancel": "Отмена",
+        "check": "Проверить"
+    },
+    "header": {
+        "home": "Главная",
+        "products": "Товары",
+        "categories": "Категории"
+    },
+    "auth": {
+        "login": "Вход",
+        "register": "Регистрация",
+        "username": "Логин",
+        "firstName": "Имя",
+        "lastName": "Фамилия",
+        "password": "Пароль",
+        "repeatPassword": "Повторите пароль",
+        "email": "Email",
+        "check": "Проверить",
+        "loginToRegister": "Новый пользователь?",
+        "registerToLogin": "Уже есть аккаунт?"
+    },
+    "home": {
+        "hero": {
+            "title": "Свежие цветы оптом",
+            "caption": "С доставкой к вам",
+            "button": "Начать покупки",
+            "features": [
+                {
+                    "image": "Price.svg",
+                    "title": "Выгодные цены",
+                    "description": "Доступные цены на каждый день.",
+                    "id": "1"
+                },
+                {
+                    "image": "Credit-Card-Blocked.svg",
+                    "title": "Безопасная оплата",
+                    "description": "Надежные и защищенные платежи.",
+                    "id": "2"
+                },
+                {
+                    "image": "tulipSvg.svg",
+                    "title": "Лучшее качество",
+                    "description": "Только свежие и отборные цветы.",
+                    "id": "3"
+                },
+                {
+                    "image": "Customer-Service.svg",
+                    "title": "Поддержка клиентов",
+                    "description": "Всегда на связи и готовы помочь.",
+                    "id": "4"
+                }
+            ]
+        },
+        "hotProducts": {
+            "title": "Популярные товары",
+            "button": "Все популярные товары"
+        },
+        "shopByCategory": {
+            "title": "Покупки по категориям",
+            "button": "Все категории"
+        }
+    },
+    "store": {
+        "title": "Все цветы",
+        "showAll": "Показать все",
+        "showMore": "Показать больше",
+        "showLess": "Показать меньше",
+        "category": "Категория",
+        "perFlower": "за цветок",
+        "addProduct": "Добавить товар",
+        "alsoLike": "Вам также может понравиться",
+        "backButton": "Назад к категории {0}",
+        "details": {
+            "colour": "Цвет",
+            "bloomCount": "Количество бутонов",
+            "stemsNumber": "Количество стеблей",
+            "openingSpeed": "Скорость раскрытия",
+            "vaseLine": "Стойкость в вазе",
+            "headSize": "Размер бутона",
+            "stemSize": "Длина стебля",
+            "availability": "Наличие",
+            "reviews": "Отзывы",
+            "productCare": "Уход за цветами"
+        }
+    },
+    "category": {
+        "title": "Покупки по категориям",
+        "button": "Все товары"
+    },
+    "bag": {
+        "totalDiscount": "Скидка",
+        "totalPrice": "Итоговая сумма",
+        "deliveryDate": "Дата доставки",
+        "discountHint": "(Подсказка: используйте OFF5, OFF10 или OFF15)",
+        "discount": {
+            "wrongCode": "Неверный промокод!",
+            "discountCodeQuestion": "Промокод?",
+            "code": "Код",
+            "check": "Проверить",
+            "discountActive": "Скидка % активирована",
+            "disable": "Отключить"
+        }
+    },
+    "dashboard": {
+        "header": {
+            "orders": "Заказы",
+            "profile": "Профиль",
+            "products": "Товары",
+            "addProduct": "Добавить товар",
+            "categories": "Категории",
+            "hero": "Hero",
+            "showcase": "Сегодня в наличии",
+            "discounts": "Скидки"
+        },
+        "profile": {
+            "title": "Редактировать профиль",
+            "firstName": "Имя",
+            "lastName": "Фамилия",
+            "username": "Логин",
+            "email": "Email",
+            "save": "Сохранить",
+            "created": "Создан"
+        },
+        "product": {
+            "productTitle": "Редактировать товар",
+            "editProductTitle": "Что вы хотите изменить?",
+            "change": "Изменить",
+            "fieldRequired": "Поле обязательно!",
+            "deleteProductQuestion": "Удалить этот товар?",
+            "deleteProduct": "Удалить товар!",
+            "delete": "Удалить",
+            "deleteModalTitle": "Вы уверены?",
+            "deleteModalContent": "Это действие нельзя отменить, товар будет удален навсегда.",
+            "copy": "копировать",
+            "addProduct": "Добавить товар",
+            "title": "Название",
+            "price": "Цена",
+            "image": "Изображение",
+            "category": "Категория",
+            "description": "Описание"
+        },
+        "category": {
+            "title": "Категории",
+            "add": "Добавить",
+            "name": "Название",
+            "id": "ID"
+        },
+        "orders": {
+            "title": "Панель продаж",
+            "headers": [
+                "№",
+                "Скидка",
+                "Кол-во",
+                "Сумма",
+                "Детали"
+            ],
+            "more": "ПОДРОБНЕЕ",
+            "detailsTitle": "Детали строки {0}:",
+            "detailsHeaders": [
+                "Изображение",
+                "Название",
+                "Кол-во",
+                "Цена",
+                "Итог"
+            ],
+            "totalPrice": "Итоговая сумма",
+            "discount": "Скидка",
+            "priceWithDiscount": "Сумма со скидкой",
+            "deliveryDate": "Дата доставки",
+            "ok": "OK"
+        }
+    },
+    "hotDeals": {
+        "title": "Горячие предложения",
+        "headline": "Скидка 15% на наполнители и тюльпаны",
+        "content": "Покупайте популярные товары и получайте скидку 15%.",
+        "caption": "Действуют условия акции.",
+        "button": "К покупкам"
+    },
+    "footer": "Buket.by"
+}

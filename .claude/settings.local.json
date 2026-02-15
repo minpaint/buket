@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir:*)",
+      "Bash(pip install:*)",
+      "Bash(npm install:*)",
+      "Bash(python manage.py migrate:*)",
+      "Bash(python manage.py runserver:*)",
+      "Bash(npm run dev:*)",
+      "Bash(node --version:*)",
+      "Bash(npm:*)",
+      "Bash(npx next dev --turbopack)",
+      "Bash(tasklist:*)",
+      "Bash(\"C:\\\\Users\\\\miag\\\\AppData\\\\Local\\\\Programs\\\\Python\\\\Python313\\\\python.exe\" -m pip install -r backend/requirements.txt)"
+    ]
+  }
+}
