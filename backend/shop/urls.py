@@ -7,6 +7,7 @@ from .views import (ProductViewSet, OrderViewSet, DiscountViewSet, CategoryViewS
                     store_page_category, store_page_flower, old_product_redirect,
                     categories_page, reviews_page, site_page,
                     cart_page, cart_add, cart_update, cart_remove, cart_count, cart_checkout, cart_drawer,
+                    contacts_page,
                     # Dashboard pages
                     dashboard_products, dashboard_product_form, dashboard_hero, dashboard_showcase,
                     dashboard_categories, dashboard_profile, dashboard_profile_password, dashboard_logout,
@@ -44,6 +45,7 @@ urlpatterns = [
     path('categories/', categories_page, name='web_categories'),
     path('reviews/', reviews_page, name='web_reviews'),
     path('p/<slug:slug>/', site_page, name='web_site_page'),
+    path('kontakty/', contacts_page, name='web_contacts'),
     path('cart/', cart_page, name='web_cart'),
     path('cart/add/<int:product_id>/', cart_add, name='cart_add'),
     path('cart/update/<int:product_id>/', cart_update, name='cart_update'),

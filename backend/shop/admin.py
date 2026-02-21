@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Product, ProductImage, Discount, Order, OrderItem, Category, Review, HeroBanner, Store, StoreManager, FlowerTag, SitePage
+from .models import Product, ProductImage, Discount, Order, OrderItem, Category, Review, HeroBanner, Store, StoreManager, StorePhone, StorePhoto, FlowerTag, SitePage
 
 admin.site.site_header = 'Администрирование Buket.by'
 admin.site.site_title = 'Buket.by Admin'
@@ -164,8 +164,42 @@ class CategoryAdmin(admin.ModelAdmin):
 admin.site.register(Discount)
 admin.site.register(Order)
 admin.site.register(OrderItem)
-admin.site.register(Store)
 admin.site.register(StoreManager)
+
+
+class StorePhoneInline(admin.TabularInline):
+    model = StorePhone
+    extra = 2
+    fields = ('emoji', 'label', 'number', 'sort_order')
+
+
+class StorePhotoInline(admin.TabularInline):
+    model = StorePhoto
+    extra = 2
+    fields = ('image', 'caption', 'sort_order')
+    readonly_fields = ('photo_preview',)
+
+    def photo_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" style="width:80px;height:80px;object-fit:cover;border-radius:6px;" />',
+                obj.image.url,
+            )
+        return '—'
+    photo_preview.short_description = 'Превью'
+
+
+@admin.register(Store)
+class StoreAdmin(admin.ModelAdmin):
+    list_display = ('name', 'address', 'working_hours', 'is_active', 'sort_order')
+    list_editable = ('is_active', 'sort_order')
+    search_fields = ('name', 'address')
+    fields = (
+        'name', 'subdomain', 'is_active', 'sort_order',
+        'address', 'working_hours', 'description',
+        'map_embed_url',
+    )
+    inlines = [StorePhoneInline, StorePhotoInline]
 
 
 @admin.register(Review)

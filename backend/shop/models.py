@@ -17,14 +17,62 @@ class Store(models.Model):
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создан')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлен')
     address = models.TextField(blank=True, default='', verbose_name='Адрес')
-    phone = models.CharField(max_length=20, blank=True, default='', verbose_name='Телефон')
+    phone = models.CharField(max_length=20, blank=True, default='', verbose_name='Телефон (устар.)')
+    description = models.TextField(blank=True, default='', verbose_name='Описание / как добраться')
+    working_hours = models.CharField(max_length=200, blank=True, default='', verbose_name='Режим работы')
+    map_embed_url = models.TextField(
+        blank=True, default='',
+        verbose_name='Код карты (iframe src)',
+        help_text='Вставьте src="" из iframe Яндекс/Google карт',
+    )
+    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='Порядок')
 
     class Meta:
         verbose_name = 'Магазин'
         verbose_name_plural = 'Магазины'
+        ordering = ('sort_order', 'name')
 
     def __str__(self):
         return self.name
+
+
+class StorePhone(models.Model):
+    EMOJI_CHOICES = [
+        ('📞', '📞 Телефон'),
+        ('📱', '📱 Мобильный'),
+        ('💬', '💬 WhatsApp/Viber'),
+        ('✉️', '✉️ Email'),
+        ('🕐', '🕐 Доп. время'),
+        ('', 'Без эмоджи'),
+    ]
+    store = models.ForeignKey('Store', on_delete=models.CASCADE, related_name='phones', verbose_name='Магазин')
+    emoji = models.CharField(max_length=10, blank=True, default='📞', choices=EMOJI_CHOICES, verbose_name='Эмоджи')
+    label = models.CharField(max_length=50, blank=True, default='', verbose_name='Подпись (напр. «Заказы»)')
+    number = models.CharField(max_length=50, verbose_name='Номер / контакт')
+    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='Порядок')
+
+    class Meta:
+        verbose_name = 'Телефон магазина'
+        verbose_name_plural = 'Телефоны магазина'
+        ordering = ('sort_order',)
+
+    def __str__(self):
+        return f'{self.store.name}: {self.number}'
+
+
+class StorePhoto(models.Model):
+    store = models.ForeignKey('Store', on_delete=models.CASCADE, related_name='photos', verbose_name='Магазин')
+    image = models.ImageField(upload_to='stores/', verbose_name='Фото интерьера')
+    caption = models.CharField(max_length=200, blank=True, default='', verbose_name='Подпись')
+    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='Порядок')
+
+    class Meta:
+        verbose_name = 'Фото магазина'
+        verbose_name_plural = 'Фото магазина'
+        ordering = ('sort_order',)
+
+    def __str__(self):
+        return f'{self.store.name} — фото {self.sort_order}'
 
 
 class StoreManager(models.Model):

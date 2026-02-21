@@ -313,6 +313,12 @@ def site_page(request, slug):
     return render(request, "shop/site_page.html", {"page": page})
 
 
+def contacts_page(request):
+    from shop.models import Store
+    stores = Store.objects.filter(is_active=True).prefetch_related('phones', 'photos').order_by('sort_order', 'name')
+    return render(request, "shop/contacts.html", {"stores": stores})
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def api_root(request, format=None):
