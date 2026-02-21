@@ -1,0 +1,430 @@
+{% extends "shop/base.html" %}
+{% block title %}Корзина - Buket{% endblock %}
+
+{% block extra_styles %}
+<style>
+  .wrap{max-width:1100px;margin:0 auto;padding:20px}
+  .page-title{font-size:32px;color:#166534;margin:0 0 20px}
+
+  /* Двухколоночный layout */
+  .cart-layout{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start}
+
+  /* Пустая корзина */
+  .empty-state{
+    grid-column:1/-1;
+    text-align:center;padding:60px 20px;
+    border:1px solid #e5e7eb;border-radius:14px;background:#fafafa;
+  }
+  .empty-state svg{opacity:.3;margin-bottom:16px}
+  .empty-state p{color:#6b7280;font-size:16px;margin:0 0 20px}
+  .btn-primary{
+    display:inline-flex;align-items:center;gap:8px;
+    background:#166534;color:#fff;
+    padding:11px 24px;border-radius:999px;
+    font-weight:700;font-size:15px;
+    border:none;cursor:pointer;text-decoration:none;
+    transition:background .2s;
+  }
+  .btn-primary:hover{background:#14532d}
+
+  /* Список товаров */
+  .cart-items{display:flex;flex-direction:column;gap:12px}
+
+  .cart-item{
+    display:grid;
+    grid-template-columns:90px 1fr auto;
+    gap:14px;align-items:center;
+    border:1px solid #e5e7eb;border-radius:12px;
+    padding:12px;background:#fff;
+  }
+  .item-img{
+    width:90px;height:90px;object-fit:cover;
+    border-radius:8px;background:#f3f9f1;flex-shrink:0;
+  }
+  .item-info{min-width:0}
+  .item-title{
+    font-size:15px;font-weight:600;color:#1f2937;
+    margin:0 0 4px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .item-price{font-size:13px;color:#6b7280;margin:0 0 10px}
+
+  /* Контроль количества */
+  .qty-control{display:flex;align-items:center;gap:0}
+  .qty-btn{
+    width:32px;height:32px;
+    border:1px solid #d1d5db;background:#fff;
+    border-radius:8px;
+    font-size:18px;line-height:1;color:#166534;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .15s,border-color .15s;
+    flex-shrink:0;
+  }
+  .qty-btn:hover:not(:disabled){background:#f3f9f1;border-color:#166534}
+  .qty-btn:disabled{opacity:.35;cursor:default}
+  .qty-val{
+    width:40px;text-align:center;
+    font-size:15px;font-weight:700;color:#111827;
+    border:none;outline:none;background:transparent;
+  }
+
+  /* Правая колонка: итого */
+  .item-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex-shrink:0}
+  .item-total{font-size:17px;font-weight:700;color:#166534;white-space:nowrap}
+  .remove-btn{
+    background:none;border:none;cursor:pointer;padding:4px;
+    color:#9ca3af;transition:color .15s;
+    display:flex;align-items:center;
+  }
+  .remove-btn:hover{color:#dc2626}
+
+  /* Итоговая панель */
+  .order-summary{
+    border:1px solid #e5e7eb;border-radius:14px;
+    background:#fff;padding:20px;
+    position:sticky;top:76px;
+  }
+  .summary-title{font-size:18px;font-weight:700;color:#166534;margin:0 0 16px}
+  .summary-row{
+    display:flex;justify-content:space-between;
+    font-size:14px;color:#374151;margin-bottom:10px;
+  }
+  .summary-divider{border:none;border-top:1px solid #e5e7eb;margin:14px 0}
+  .summary-total{
+    display:flex;justify-content:space-between;
+    font-size:18px;font-weight:700;color:#111827;margin-bottom:20px;
+  }
+  .btn-checkout{
+    width:100%;padding:13px;
+    background:#166534;color:#fff;
+    border:none;border-radius:999px;
+    font-size:16px;font-weight:700;cursor:pointer;
+    transition:background .2s;
+  }
+  .btn-checkout:hover{background:#14532d}
+  .summary-note{font-size:12px;color:#9ca3af;text-align:center;margin-top:10px}
+
+  /* Модалка оформления */
+  .modal-overlay{
+    display:none;position:fixed;inset:0;
+    background:rgba(0,0,0,.45);z-index:100;
+  }
+  .modal-overlay.open{
+    display:flex;
+    align-items:center;justify-content:center;
+  }
+  .modal{
+    background:#fff;border-radius:16px;
+    padding:28px 24px;max-width:440px;width:calc(100% - 32px);
+    position:relative;
+  }
+  .modal h2{margin:0 0 16px;font-size:20px;color:#166534}
+  .modal-close{
+    position:absolute;top:14px;right:16px;
+    background:none;border:none;font-size:22px;
+    color:#9ca3af;cursor:pointer;line-height:1;
+  }
+  .form-field{margin-bottom:14px}
+  .form-field label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:4px}
+  .form-field input,.form-field textarea,.form-field select{
+    width:100%;padding:9px 12px;
+    border:1px solid #d1d5db;border-radius:8px;
+    font-size:14px;color:#111827;outline:none;
+    transition:border-color .15s;
+    box-sizing:border-box;
+  }
+  .form-field input:focus,.form-field textarea:focus{border-color:#166534}
+  .form-field textarea{resize:vertical;min-height:72px}
+  .modal-footer{display:flex;gap:10px;margin-top:20px}
+  .btn-cancel{
+    flex:1;padding:11px;border:1px solid #d1d5db;
+    background:#fff;border-radius:999px;
+    font-size:15px;font-weight:700;cursor:pointer;color:#374151;
+    transition:background .15s;
+  }
+  .btn-cancel:hover{background:#f3f4f6}
+  .btn-submit{
+    flex:2;padding:11px;background:#166534;
+    color:#fff;border:none;border-radius:999px;
+    font-size:15px;font-weight:700;cursor:pointer;
+    transition:background .2s;
+  }
+  .btn-submit:hover{background:#14532d}
+
+  /* Успех */
+  .success-state{text-align:center;padding:20px 0}
+  .success-state svg{color:#166534;margin-bottom:12px}
+  .success-state h2{color:#166534;margin:0 0 8px}
+  .success-state p{color:#6b7280;margin:0 0 20px}
+
+  @media (max-width:900px){
+    .wrap{padding:14px 12px}
+    .page-title{font-size:24px}
+    .cart-layout{grid-template-columns:1fr}
+    .order-summary{position:static}
+  }
+  @media (max-width:560px){
+    .cart-item{grid-template-columns:70px 1fr auto;gap:10px;padding:10px}
+    .item-img{width:70px;height:70px}
+    .item-title{font-size:13px}
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <h1 class="page-title">Корзина</h1>
+
+  {% if items %}
+  <div class="cart-layout">
+
+    <!-- Список товаров -->
+    <div class="cart-items" id="cartItems">
+      {% for item in items %}
+      <div class="cart-item" id="item-{{ item.id }}">
+        <img class="item-img" src="{{ item.image_url }}" alt="{{ item.title }}">
+        <div class="item-info">
+          <p class="item-title">{{ item.title }}</p>
+          <p class="item-price">{% if item.price %}{{ item.price|floatformat:"-2" }} BYN × <span class="qty-display">{{ item.qty }}</span>{% else %}Цену уточняйте{% endif %}</p>
+          <div class="qty-control">
+            <button class="qty-btn" onclick="changeQty({{ item.id }}, -1)" {% if item.qty <= 1 %}disabled{% endif %} id="btn-minus-{{ item.id }}">−</button>
+            <span class="qty-val" id="qty-{{ item.id }}">{{ item.qty }}</span>
+            <button class="qty-btn" onclick="changeQty({{ item.id }}, 1)" {% if item.qty >= 99 %}disabled{% endif %} id="btn-plus-{{ item.id }}">+</button>
+          </div>
+        </div>
+        <div class="item-right">
+          <span class="item-total" id="total-{{ item.id }}">{% if item.price %}{{ item.line_total|floatformat:"-2" }} BYN{% else %}—{% endif %}</span>
+          <button class="remove-btn" onclick="removeItem({{ item.id }})" title="Удалить">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Итоговая панель -->
+    <div class="order-summary">
+      <p class="summary-title">Ваш заказ</p>
+      <div class="summary-row">
+        <span>Товары (<span id="summary-count">{{ items|length }}</span>)</span>
+        <span id="summary-subtotal">{{ total|floatformat:"-2" }} BYN</span>
+      </div>
+      <div class="summary-row">
+        <span>Доставка</span>
+        <span style="color:#166534;font-weight:600">Уточняется</span>
+      </div>
+      <hr class="summary-divider">
+      <div class="summary-total">
+        <span>Итого</span>
+        <span id="summary-total">{{ total|floatformat:"-2" }} BYN</span>
+      </div>
+      <button class="btn-checkout" onclick="openCheckout()">Оформить заказ</button>
+      <p class="summary-note">Оплата при получении или по договорённости</p>
+    </div>
+  </div>
+
+  {% else %}
+  <div class="cart-layout">
+    <div class="empty-state">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="1.5">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+      </svg>
+      <p>Корзина пуста</p>
+      <a href="/store/" class="btn-primary">Перейти в каталог</a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Модалка оформления заказа -->
+<div class="modal-overlay" id="checkoutModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeCheckout()">×</button>
+    <div id="checkoutForm">
+      <h2>Оформление заказа</h2>
+      <div class="form-field">
+        <label for="customerName">Имя *</label>
+        <input type="text" id="customerName" placeholder="Ваше имя">
+      </div>
+      <div class="form-field">
+        <label for="customerPhone">Телефон *</label>
+        <input type="tel" id="customerPhone" placeholder="+375 (XX) XXX-XX-XX">
+      </div>
+      <div class="form-field">
+        <label for="customerComment">Комментарий к заказу</label>
+        <textarea id="customerComment" placeholder="Пожелания по букету, время доставки и т.д."></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeCheckout()">Отмена</button>
+        <button class="btn-submit" onclick="submitOrder()">Подтвердить</button>
+      </div>
+    </div>
+    <div class="success-state" id="successState" style="display:none">
+      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
+      </svg>
+      <h2>Спасибо за заказ!</h2>
+      <p>Мы свяжемся с вами в ближайшее время для подтверждения</p>
+      <a href="/store/" class="btn-primary">Продолжить покупки</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  // Данные цен из Django (для пересчёта на клиенте)
+  const PRICES = {
+    {% for item in items %}
+    {{ item.id }}: {{ item.price }},
+    {% endfor %}
+  };
+  const QTY = {
+    {% for item in items %}
+    {{ item.id }}: {{ item.qty }},
+    {% endfor %}
+  };
+
+  function csrfToken() {
+    return document.cookie.split('; ').reduce(function(acc, c) {
+      const [k, v] = c.split('=');
+      return k === 'csrftoken' ? decodeURIComponent(v) : acc;
+    }, '');
+  }
+
+  function fmt(n) {
+    return parseFloat(n).toFixed(2).replace('.', ',') + ' BYN';
+  }
+
+  function recalcSummary() {
+    let total = 0;
+    let count = 0;
+    Object.keys(QTY).forEach(function(id) {
+      const qty = QTY[id];
+      if (qty > 0 && PRICES[id]) {
+        total += PRICES[id] * qty;
+        count += 1;
+      }
+    });
+    const summaryCount = document.getElementById('summary-count');
+    const summarySubtotal = document.getElementById('summary-subtotal');
+    const summaryTotal = document.getElementById('summary-total');
+    if (summaryCount) summaryCount.textContent = count;
+    if (summarySubtotal) summarySubtotal.textContent = fmt(total);
+    if (summaryTotal) summaryTotal.textContent = fmt(total);
+  }
+
+  function updateBadge(cartCount) {
+    const badge = document.getElementById('cartBadge');
+    if (!badge) return;
+    badge.textContent = cartCount;
+    badge.style.display = cartCount > 0 ? 'flex' : 'none';
+  }
+
+  function changeQty(productId, delta) {
+    const current = QTY[productId] || 1;
+    const newQty = Math.max(1, Math.min(99, current + delta));
+    if (newQty === current) return;
+
+    fetch('/cart/update/' + productId + '/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+      body: JSON.stringify({qty: newQty})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok) return;
+      QTY[productId] = newQty;
+      // Обновляем UI
+      const qtyEl = document.getElementById('qty-' + productId);
+      const qtyDisplay = document.querySelector('#item-' + productId + ' .qty-display');
+      const totalEl = document.getElementById('total-' + productId);
+      const minusBtn = document.getElementById('btn-minus-' + productId);
+      const plusBtn = document.getElementById('btn-plus-' + productId);
+      if (qtyEl) qtyEl.textContent = newQty;
+      if (qtyDisplay && PRICES[productId]) qtyDisplay.textContent = newQty;
+      if (totalEl && PRICES[productId]) totalEl.textContent = fmt(PRICES[productId] * newQty);
+      if (minusBtn) minusBtn.disabled = newQty <= 1;
+      if (plusBtn) plusBtn.disabled = newQty >= 99;
+      recalcSummary();
+      updateBadge(data.cart_count);
+    });
+  }
+
+  function removeItem(productId) {
+    fetch('/cart/remove/' + productId + '/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken()}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (!data.ok) return;
+      const itemEl = document.getElementById('item-' + productId);
+      if (itemEl) itemEl.remove();
+      delete QTY[productId];
+      delete PRICES[productId];
+      recalcSummary();
+      updateBadge(data.cart_count);
+
+      // Если корзина пуста — показываем заглушку
+      const remaining = Object.keys(QTY).length;
+      if (remaining === 0) {
+        location.reload();
+      }
+    });
+  }
+
+  function openCheckout() {
+    document.getElementById('checkoutModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeCheckout() {
+    document.getElementById('checkoutModal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function submitOrder() {
+    var name = document.getElementById('customerName').value.trim();
+    var phone = document.getElementById('customerPhone').value.trim();
+    var comment = document.getElementById('customerComment').value.trim();
+    if (!name || !phone) {
+      alert('Пожалуйста, заполните имя и телефон');
+      return;
+    }
+    var btn = document.querySelector('.btn-submit');
+    btn.disabled = true;
+    btn.textContent = 'Отправляем…';
+
+    fetch('/cart/checkout/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+      body: JSON.stringify({name: name, phone: phone, comment: comment})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        document.getElementById('checkoutForm').style.display = 'none';
+        document.getElementById('successState').style.display = 'block';
+        updateBadge(0);
+      } else {
+        btn.disabled = false;
+        btn.textContent = 'Подтвердить';
+        alert(data.error || 'Произошла ошибка. Попробуйте ещё раз.');
+      }
+    })
+    .catch(function() {
+      btn.disabled = false;
+      btn.textContent = 'Подтвердить';
+      alert('Ошибка соединения. Попробуйте ещё раз.');
+    });
+  }
+
+  // Закрыть модалку по клику на фон
+  document.getElementById('checkoutModal').addEventListener('click', function(e) {
+    if (e.target === this) closeCheckout();
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,186 @@
+{% extends "shop/dashboard/base_dashboard.html" %}
+{% block title %}Баннеры{% endblock %}
+{% block topbar_title %}Hero-баннеры{% endblock %}
+
+{% block extra_styles %}
+<style>
+  .banner-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;margin-bottom:20px}
+  .banner-card{background:#fff;border:1px solid var(--Border);border-radius:12px;overflow:hidden}
+  .banner-img{width:100%;height:140px;object-fit:cover;background:#f3f9f1}
+  .banner-body{padding:14px}
+  .banner-title{font-weight:700;font-size:15px;margin-bottom:4px}
+  .banner-meta{font-size:12px;color:var(--Muted);margin-bottom:10px}
+  .banner-actions{display:flex;gap:8px;align-items:center}
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;align-items:center;justify-content:center}
+  .modal-overlay.open{display:flex}
+  .modal{background:#fff;border-radius:14px;padding:24px;max-width:580px;width:calc(100% - 32px);max-height:90vh;overflow-y:auto;position:relative}
+  .modal h2{font-size:18px;color:var(--PrimaryDark);margin-bottom:16px}
+  .modal-close{position:absolute;top:12px;right:14px;background:none;border:none;font-size:22px;color:var(--Muted);cursor:pointer}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px;display:flex;justify-content:flex-end">
+  <button class="btn btn-primary" onclick="openModal()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Добавить баннер
+  </button>
+</div>
+
+{% if banners %}
+<div class="banner-grid">
+  {% for b in banners %}
+  <div class="banner-card" id="banner-{{ b.id }}">
+    {% if b.desktop_image_url %}
+    <img class="banner-img" src="{{ b.desktop_image_url }}" alt="{{ b.name }}">
+    {% else %}
+    <div class="banner-img" style="display:flex;align-items:center;justify-content:center;color:var(--Muted);font-size:13px">Нет изображения</div>
+    {% endif %}
+    <div class="banner-body">
+      <div class="banner-title">{{ b.name }}</div>
+      <div class="banner-meta">
+        {{ b.title|truncatechars:50 }}
+        {% if b.starts_on or b.ends_on %}
+          · {{ b.starts_on|default:"∞" }} — {{ b.ends_on|default:"∞" }}
+        {% endif %}
+      </div>
+      <div class="banner-actions">
+        {% if b.is_active %}<span class="badge badge-green">Активен</span>{% else %}<span class="badge badge-gray">Скрыт</span>{% endif %}
+        <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="editBanner({{ b.id }})">Редактировать</button>
+        <button class="btn btn-danger btn-sm btn-icon" onclick="deleteBanner({{ b.id }})" title="Удалить">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:40px;color:var(--Muted)">Баннеров пока нет. Добавьте первый!</div>
+{% endif %}
+
+<!-- Модалка создания/редактирования -->
+<div class="modal-overlay" id="bannerModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h2 id="modalTitle">Новый баннер</h2>
+    <input type="hidden" id="bannerId" value="">
+    <div class="form-row"><label>Название (внутреннее) *</label><input type="text" id="bName" placeholder="Например: Летняя акция"></div>
+    <div class="form-row"><label>Заголовок (на баннере)</label><input type="text" id="bTitle" placeholder="Заголовок"></div>
+    <div class="form-row"><label>Подзаголовок / текст</label><input type="text" id="bCaption" placeholder="Короткий текст"></div>
+    <div class="form-row"><label>Обзор</label><textarea id="bOverview" rows="3" placeholder="Короткое описание кампании"></textarea></div>
+    <div class="form-grid">
+      <div class="form-row"><label>Текст кнопки</label><input type="text" id="bButtonText" placeholder="Перейти"></div>
+      <div class="form-row"><label>URL кнопки</label><input type="url" id="bButtonUrl" placeholder="/store/"></div>
+    </div>
+    <div class="form-row"><label>Изображение (desktop)</label><input type="file" id="bDesktopImage" accept="image/*"></div>
+    <div class="form-row"><small id="bDesktopCurrent" style="color:var(--Muted)"></small></div>
+    <div class="form-row"><label>Изображение (mobile)</label><input type="file" id="bMobileImage" accept="image/*"></div>
+    <div class="form-row"><small id="bMobileCurrent" style="color:var(--Muted)"></small></div>
+    <div class="form-grid">
+      <div class="form-row"><label>Начало показа</label><input type="date" id="bStartsOn"></div>
+      <div class="form-row"><label>Конец показа</label><input type="date" id="bEndsOn"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Порядок</label><input type="number" id="bSortOrder" value="0" min="0"></div>
+      <div class="form-row" style="justify-content:flex-end;display:flex;align-items:flex-end">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
+          <input type="checkbox" id="bIsActive" checked style="width:16px;height:16px;accent-color:var(--PrimaryDark)">
+          Активен
+        </label>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button class="btn btn-primary" onclick="saveBanner()">Сохранить</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Отмена</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  var bannersData = {{ banners_json|safe }};
+
+  function openModal(data) {
+    document.getElementById('modalTitle').textContent = data ? 'Редактировать баннер' : 'Новый баннер';
+    document.getElementById('bannerId').value = data ? data.id : '';
+    document.getElementById('bName').value = data ? (data.name || '') : '';
+    document.getElementById('bTitle').value = data ? (data.title || '') : '';
+    document.getElementById('bCaption').value = data ? (data.caption || '') : '';
+    document.getElementById('bOverview').value = data ? (data.overview || '') : '';
+    document.getElementById('bButtonText').value = data ? (data.button_text || '') : '';
+    document.getElementById('bButtonUrl').value = data ? (data.button_url || '') : '';
+    document.getElementById('bDesktopImage').value = '';
+    document.getElementById('bMobileImage').value = '';
+    document.getElementById('bDesktopCurrent').textContent = data && data.desktop_image ? ('Текущее: ' + data.desktop_image) : '';
+    document.getElementById('bMobileCurrent').textContent = data && data.mobile_image ? ('Текущее: ' + data.mobile_image) : '';
+    document.getElementById('bStartsOn').value = data ? (data.starts_on || '') : '';
+    document.getElementById('bEndsOn').value = data ? (data.ends_on || '') : '';
+    document.getElementById('bSortOrder').value = data ? (data.sort_order || 0) : 0;
+    document.getElementById('bIsActive').checked = data ? !!data.is_active : true;
+    document.getElementById('bannerModal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeModal() {
+    document.getElementById('bannerModal').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function editBanner(id) {
+    var data = bannersData.find(function(b) { return b.id === id; });
+    if (data) openModal(data);
+  }
+
+  function saveBanner() {
+    var id = document.getElementById('bannerId').value;
+    var payload = new FormData();
+    payload.append('name', document.getElementById('bName').value);
+    payload.append('title', document.getElementById('bTitle').value);
+    payload.append('caption', document.getElementById('bCaption').value);
+    payload.append('overview', document.getElementById('bOverview').value);
+    payload.append('button_text', document.getElementById('bButtonText').value);
+    payload.append('button_url', document.getElementById('bButtonUrl').value);
+    payload.append('starts_on', document.getElementById('bStartsOn').value || '');
+    payload.append('ends_on', document.getElementById('bEndsOn').value || '');
+    payload.append('sort_order', String(parseInt(document.getElementById('bSortOrder').value) || 0));
+    payload.append('is_active', document.getElementById('bIsActive').checked ? 'true' : 'false');
+    var desktopFile = document.getElementById('bDesktopImage').files[0];
+    var mobileFile = document.getElementById('bMobileImage').files[0];
+    if (desktopFile) payload.append('desktop_image', desktopFile);
+    if (mobileFile) payload.append('mobile_image', mobileFile);
+    if (!id && !desktopFile) { showAlert('Загрузите desktop изображение', 'error'); return; }
+    if (!document.getElementById('bName').value) { showAlert('Укажите название', 'error'); return; }
+
+    var url = id ? '/dashboard/api/banner/' + id + '/save/' : '/dashboard/api/banner/create/';
+    fetch(url, {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken()},
+      body: payload
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) { closeModal(); location.reload(); }
+      else showAlert(data.error || 'Ошибка', 'error');
+    });
+  }
+
+  function deleteBanner(id) {
+    if (!confirm('Удалить баннер?')) return;
+    fetch('/dashboard/api/banner/' + id + '/delete/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken()}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) { var el = document.getElementById('banner-' + id); if (el) el.remove(); showAlert('Баннер удалён', 'success'); }
+      else showAlert(data.error || 'Ошибка', 'error');
+    });
+  }
+
+  document.getElementById('bannerModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+</script>
+{% endblock %}

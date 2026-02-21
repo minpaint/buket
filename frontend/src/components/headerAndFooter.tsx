@@ -45,22 +45,15 @@ export const Header = () => {
         ))}
       </List>
       <Divider />
-      <List>
-        {
-          isAuthenticated ? (
-            <ListItem disablePadding>
-              <ListItemButton>
-                <div className="w-full"><LogoutButton /></div>
-              </ListItemButton>
-            </ListItem>
-          ) : (
-            <ListItem disablePadding>
-              <ListItemButton href={Links.login(lang)}>
-                <ListItemText primary={"Вход"} />
-              </ListItemButton>
-            </ListItem>
-          )}
-      </List>
+      {isAuthenticated && (
+        <List>
+          <ListItem disablePadding>
+            <ListItemButton>
+              <div className="w-full"><LogoutButton /></div>
+            </ListItemButton>
+          </ListItem>
+        </List>
+      )}
     </Box>
   )
 
@@ -82,7 +75,6 @@ export const Header = () => {
           <Link className={pathname == Links.store(lang) ? "border-b-2" : ""} href={Links.store(lang)}>{dictionary?.header?.products}</Link>
           <Link className={pathname == Links.categories(lang) ? "border-b-2" : ""} href={Links.categories(lang)}>{dictionary?.header?.categories}</Link>
           <Link className={pathname == Links.reviews(lang) ? "border-b-2" : ""} href={Links.reviews(lang)}>Отзывы</Link>
-          {/* <Link className={pathname == Links.dashboard.base ? "border-b-2" : ""} href={Links.dashboard.base}>Dashboard</Link> */}
         </div>
         <div className="flex gap-5 items-center">
           <Link href={Links.bag(lang)} className="flex relative">
@@ -91,15 +83,11 @@ export const Header = () => {
               <ProductQty />
             </div>
           </Link>
-          {isAuthenticated ? (
-            <Link href={Links.dashboard.base(lang)} className="md:block hidden"><Image alt="Profile" src={Profile} width={33} height={33} /></Link>
-          ) : (
-            <Link href={Links.login(lang)} className="md:block hidden"><Image alt="Profile" src={Profile} width={33} height={33} /></Link>
-          )}
-          {isAuthenticated ? (
+          <Link href={Links.dashboard.base(lang)} className="md:block hidden">
+            <Image alt="Profile" src={Profile} width={33} height={33} />
+          </Link>
+          {isAuthenticated && (
             <div className="md:block hidden h-fit"><LogoutButton /></div>
-          ) : (
-            <></>
           )}
         </div>
       </nav>
@@ -144,11 +132,6 @@ export const DashboardHeader = () => {
           href={Links.dashboard.showcase(lang)}>
           {dictionary?.dashboard?.header?.showcase || "Витрина"}
         </Link>
-        {/* <Link
-          className={pathname == Links.dashboard.discounts(lang) ? "border-b-2 border-b-amber-600" : ""}
-          href={Links.dashboard.discounts(lang)}>
-          {dictionary?.dashboard?.header?.discounts}
-        </Link> */}
       </nav>
     </div>
   );

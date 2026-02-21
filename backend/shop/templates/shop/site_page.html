@@ -1,0 +1,48 @@
+{% extends "shop/base.html" %}
+{% block title %}{{ page.title }} - Buket.by{% endblock %}
+{% block extra_styles %}
+<style>
+  .sp-wrap{max-width:860px;margin:0 auto;padding:28px 20px 48px}
+  .sp-title{font-size:36px;font-weight:700;color:var(--PrimaryDark);margin:0 0 28px}
+  .page-section{margin-bottom:32px}
+  .page-section h2{font-size:22px;font-weight:700;color:var(--PrimaryDark);margin:0 0 12px;padding-bottom:8px;border-bottom:2px solid #d1fae5}
+  .page-section p{margin:0 0 12px;line-height:1.65;color:#1f2937}
+  .page-section ol,.page-section ul{margin:0 0 12px;padding-left:22px;line-height:1.7;color:#1f2937}
+  .page-section li{margin-bottom:6px}
+  .pay-methods{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;margin-top:8px}
+  .pay-method{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;gap:6px}
+  .pay-icon{font-size:32px;line-height:1}
+  .pay-method h3{font-size:16px;font-weight:700;color:var(--PrimaryDark);margin:0}
+  .pay-method p{font-size:14px;color:#374151;margin:0;line-height:1.5}
+  .pay-steps{margin:0;padding-left:22px;line-height:1.7;color:#1f2937}
+  .pay-steps li{margin-bottom:8px}
+  /* Доставка */
+  .delivery-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:8px}
+  .delivery-card{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;gap:6px}
+  .delivery-card.delivery-free{background:#f0fdf4;border-color:#86efac}
+  .delivery-icon{font-size:32px;line-height:1}
+  .delivery-card h3{font-size:20px;font-weight:700;color:var(--PrimaryDark);margin:0}
+  .delivery-card p{font-size:14px;color:#374151;margin:0;line-height:1.5}
+  .schedule-table{border-collapse:collapse;margin-top:4px;width:100%;max-width:420px}
+  .schedule-table td{padding:8px 12px;font-size:15px;color:#1f2937;border-bottom:1px solid #e5e7eb}
+  .schedule-table tr:last-child td{border-bottom:none}
+  .schedule-table td:first-child{color:#6b7280;white-space:nowrap}
+  /* Общее */
+  .sp-back{display:inline-flex;align-items:center;gap:6px;color:var(--PrimaryDark);font-weight:600;margin-bottom:18px;opacity:.75;transition:opacity .15s}
+  .sp-back:hover{opacity:1}
+  @media(max-width:600px){
+    .sp-wrap{padding:16px 14px 36px}
+    .sp-title{font-size:26px}
+    .page-section h2{font-size:19px}
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="sp-wrap">
+  <a class="sp-back" href="/">← На главную</a>
+  <h1 class="sp-title">{{ page.title }}</h1>
+  <div class="sp-content">
+    {{ page.content|safe }}
+  </div>
+</div>
+{% endblock %}

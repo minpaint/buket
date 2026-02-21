@@ -1,0 +1,167 @@
+{% extends "shop/dashboard/base_dashboard.html" %}
+{% block title %}{% if product %}Редактировать товар{% else %}Добавить товар{% endif %}{% endblock %}
+{% block topbar_title %}{% if product %}Редактировать товар{% else %}Добавить товар{% endif %}{% endblock %}
+
+{% block extra_styles %}
+<style>
+  .form-wrap{max-width:720px}
+  .img-preview{
+    width:120px;height:120px;object-fit:cover;border-radius:10px;
+    border:1px solid var(--Border);background:#f3f9f1;display:block;
+    margin-bottom:8px;
+  }
+  .checkbox-row{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px}
+  .checkbox-row input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--PrimaryDark)}
+  .stores-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .store-chip{
+    display:flex;align-items:center;gap:6px;padding:5px 10px;
+    border:1px solid var(--Border);border-radius:8px;cursor:pointer;
+    font-size:13px;transition:background .15s,border-color .15s;
+  }
+  .store-chip input{accent-color:var(--PrimaryDark)}
+  .store-chip.selected{background:var(--SoftBg);border-color:var(--PrimaryDark);color:var(--PrimaryDark);font-weight:600}
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px">
+  <a href="/dashboard/products/" style="color:var(--Muted);font-size:14px">← Назад к товарам</a>
+</div>
+
+<div class="form-wrap">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Основное</div>
+
+      {% if product %}
+      <!-- Превью изображения -->
+      {% if product.uploaded_image or product.image %}
+      <img class="img-preview" id="imgPreview"
+        src="{% if product.uploaded_image %}{{ product.uploaded_image.url }}{% else %}{{ product.image }}{% endif %}"
+        alt="{{ product.title }}">
+      {% else %}
+      <img class="img-preview" id="imgPreview" src="/static/hero/today-desktop.svg" alt="">
+      {% endif %}
+      {% endif %}
+
+      <div class="form-row">
+        <label>Название *</label>
+        <input type="text" name="title" value="{{ product.title|default:'' }}" required placeholder="Название товара">
+      </div>
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Цена (BYN) *</label>
+          <input type="number" name="price" step="0.01" min="0" value="{{ product.price|default:'' }}" required placeholder="0.00">
+        </div>
+        <div class="form-row">
+          <label>Артикул</label>
+          <input type="text" name="article" value="{{ product.article|default:'' }}" placeholder="SKU">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Категория</label>
+        <select name="category">
+          <option value="">— Без категории —</option>
+          {% for cat in categories %}
+          <option value="{{ cat.id }}" {% if product.category_id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Описание</label>
+        <textarea name="description" rows="4" placeholder="Описание товара">{{ product.description|default:'' }}</textarea>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Изображение</div>
+      <div class="form-row">
+        <label>URL изображения</label>
+        <input type="url" name="image" value="{{ product.image|default:'' }}" placeholder="https://…"
+          oninput="previewUrl(this.value)">
+      </div>
+      <div class="form-row">
+        <label>Загрузить файл</label>
+        <input type="file" name="uploaded_image" accept="image/*" onchange="previewFile(this)">
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Настройки</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <label class="checkbox-row">
+          <input type="checkbox" name="is_published" {% if product.is_published or not product %}checked{% endif %}>
+          Опубликован (виден в каталоге)
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" name="is_online_showcase" {% if product.is_online_showcase %}checked{% endif %}>
+          Показывать в онлайн-витрине
+        </label>
+      </div>
+      <div class="form-row" style="margin-top:14px">
+        <label>Порядок в витрине (меньше = выше)</label>
+        <input type="number" name="showcase_sort_order" value="{{ product.showcase_sort_order|default:0 }}" min="0" style="max-width:120px">
+      </div>
+    </div>
+
+    {% if stores %}
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Магазины</div>
+      <div class="stores-grid">
+        {% for store in stores %}
+        <label class="store-chip {% if store.id in product_store_ids %}selected{% endif %}">
+          <input type="checkbox" name="stores" value="{{ store.id }}" {% if store.id in product_store_ids %}checked{% endif %}
+            onchange="this.closest('.store-chip').classList.toggle('selected', this.checked)">
+          {{ store.name }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div style="display:flex;gap:10px">
+      <button type="submit" class="btn btn-primary">
+        {% if product %}Сохранить изменения{% else %}Добавить товар{% endif %}
+      </button>
+      <a href="/dashboard/products/" class="btn btn-secondary">Отмена</a>
+      {% if product %}
+      <button type="button" class="btn btn-danger" style="margin-left:auto" onclick="deleteProduct({{ product.id }})">Удалить товар</button>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function previewUrl(url) {
+    var img = document.getElementById('imgPreview');
+    if (!img) return;
+    if (url) img.src = url;
+  }
+
+  function previewFile(input) {
+    var img = document.getElementById('imgPreview');
+    if (!img || !input.files[0]) return;
+    var reader = new FileReader();
+    reader.onload = function(e) { img.src = e.target.result; };
+    reader.readAsDataURL(input.files[0]);
+  }
+
+  {% if product %}
+  function deleteProduct(id) {
+    if (!confirm('Удалить товар? Это действие нельзя отменить.')) return;
+    fetch('/dashboard/api/product/' + id + '/delete/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken()}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) window.location.href = '/dashboard/products/';
+      else showAlert(data.error || 'Ошибка', 'error');
+    });
+  }
+  {% endif %}
+</script>
+{% endblock %}

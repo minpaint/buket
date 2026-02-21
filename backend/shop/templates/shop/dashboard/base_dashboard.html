@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Дашборд{% endblock %} — Buket.by</title>
+  <style>
+    :root{
+      --Primary:#228b22;
+      --PrimaryDark:#166534;
+      --SoftBg:#f3f9f1;
+      --Accent:#f97316;
+      --Text:#111827;
+      --Border:#e5e7eb;
+      --Muted:#6b7280;
+      --Sidebar:240px;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Segoe UI','Noto Sans',Arial,sans-serif;background:#f9fafb;color:var(--Text);line-height:1.45}
+    a{text-decoration:none;color:inherit}
+
+    /* Layout */
+    .dash-wrap{display:flex;min-height:100vh}
+
+    /* Sidebar */
+    .sidebar{
+      width:var(--Sidebar);flex-shrink:0;
+      background:#fff;border-right:1px solid var(--Border);
+      display:flex;flex-direction:column;
+      position:fixed;top:0;left:0;bottom:0;z-index:30;
+      overflow-y:auto;
+    }
+    .sidebar-logo{
+      padding:16px 18px;border-bottom:1px solid var(--Border);
+      display:flex;align-items:center;gap:10px;
+    }
+    .sidebar-logo img{height:36px}
+    .sidebar-logo span{font-weight:700;font-size:15px;color:var(--PrimaryDark)}
+    .sidebar-nav{flex:1;padding:10px 0}
+    .nav-section{padding:8px 14px 4px;font-size:11px;font-weight:700;color:var(--Muted);text-transform:uppercase;letter-spacing:.07em}
+    .nav-link{
+      display:flex;align-items:center;gap:10px;
+      padding:9px 16px;
+      font-size:14px;font-weight:600;color:#374151;
+      transition:background .15s,color .15s;
+      border-left:3px solid transparent;
+    }
+    .nav-link:hover{background:var(--SoftBg);color:var(--PrimaryDark)}
+    .nav-link.active{background:var(--SoftBg);color:var(--PrimaryDark);border-left-color:var(--PrimaryDark)}
+    .nav-link svg{flex-shrink:0;opacity:.7}
+    .nav-link.active svg,.nav-link:hover svg{opacity:1}
+    .sidebar-footer{padding:14px 16px;border-top:1px solid var(--Border)}
+    .sidebar-footer a{font-size:13px;color:var(--Muted)}
+    .sidebar-footer a:hover{color:var(--PrimaryDark)}
+
+    /* Main area */
+    .dash-main{margin-left:var(--Sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}
+
+    /* Top bar */
+    .topbar{
+      background:#fff;border-bottom:1px solid var(--Border);
+      padding:12px 24px;
+      display:flex;align-items:center;justify-content:space-between;gap:12px;
+      position:sticky;top:0;z-index:20;
+    }
+    .topbar-title{font-size:18px;font-weight:700;color:var(--PrimaryDark)}
+    .topbar-user{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--Muted)}
+    .btn-logout{
+      padding:6px 14px;background:#f3f4f6;border:1px solid var(--Border);
+      border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;color:#374151;
+      transition:background .15s;
+    }
+    .btn-logout:hover{background:#e5e7eb}
+
+    /* Page content */
+    .dash-content{flex:1;padding:24px}
+
+    /* Common UI */
+    .card{background:#fff;border:1px solid var(--Border);border-radius:12px;padding:20px}
+    .card-title{font-size:16px;font-weight:700;color:var(--PrimaryDark);margin-bottom:16px}
+
+    .btn{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:9px 18px;border-radius:8px;
+      font-size:14px;font-weight:600;cursor:pointer;border:none;
+      transition:background .15s,opacity .15s;
+    }
+    .btn-primary{background:var(--PrimaryDark);color:#fff}
+    .btn-primary:hover{background:#14532d}
+    .btn-danger{background:#dc2626;color:#fff}
+    .btn-danger:hover{background:#b91c1c}
+    .btn-secondary{background:#f3f4f6;color:#374151;border:1px solid var(--Border)}
+    .btn-secondary:hover{background:#e5e7eb}
+    .btn-sm{padding:5px 12px;font-size:13px}
+    .btn-icon{width:32px;height:32px;padding:0;justify-content:center}
+
+    .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+    .badge-green{background:#dcfce7;color:#166534}
+    .badge-orange{background:#ffedd5;color:#c2410c}
+    .badge-gray{background:#f3f4f6;color:#374151}
+
+    /* Table */
+    .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--Border)}
+    table{width:100%;border-collapse:collapse;background:#fff}
+    th{background:var(--SoftBg);padding:10px 14px;text-align:left;font-size:13px;font-weight:700;color:var(--PrimaryDark);white-space:nowrap}
+    td{padding:10px 14px;border-top:1px solid var(--Border);font-size:14px;vertical-align:middle}
+    tr:hover td{background:#fafafa}
+
+    /* Form */
+    .form-row{margin-bottom:16px}
+    .form-row label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px}
+    .form-row input,.form-row textarea,.form-row select{
+      width:100%;padding:9px 12px;
+      border:1px solid var(--Border);border-radius:8px;
+      font-size:14px;color:var(--Text);outline:none;
+      transition:border-color .15s;
+    }
+    .form-row input:focus,.form-row textarea:focus,.form-row select:focus{border-color:var(--PrimaryDark)}
+    .form-row textarea{resize:vertical;min-height:80px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+
+    /* Alert */
+    .alert{padding:10px 14px;border-radius:8px;font-size:14px;margin-bottom:16px}
+    .alert-success{background:#dcfce7;color:#166534;border:1px solid #bbf7d0}
+    .alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca}
+
+    /* Mobile sidebar toggle */
+    .burger-dash{display:none;border:none;background:none;font-size:24px;cursor:pointer;color:var(--PrimaryDark);padding:4px}
+    .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:29}
+
+    @media(max-width:900px){
+      .sidebar{transform:translateX(-101%);transition:transform .24s ease}
+      .sidebar.open{transform:translateX(0)}
+      .sidebar-overlay.open{display:block}
+      .dash-main{margin-left:0}
+      .topbar{padding:10px 14px}
+      .dash-content{padding:14px}
+      .burger-dash{display:block}
+      .form-grid{grid-template-columns:1fr}
+    }
+  </style>
+  {% block extra_styles %}{% endblock %}
+</head>
+<body>
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+<div class="dash-wrap">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <a href="/"><img src="/static/logo.png" alt="Buket"></a>
+      <span>Дашборд</span>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section">Контент</div>
+      <a class="nav-link {% if active == 'products' %}active{% endif %}" href="/dashboard/products/">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-4 0v2"/><path d="M8 7V5a2 2 0 00-4 0v2"/></svg>
+        Товары
+      </a>
+      <a class="nav-link {% if active == 'hero' %}active{% endif %}" href="/dashboard/hero/">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Баннеры
+      </a>
+      <a class="nav-link {% if active == 'showcase' %}active{% endif %}" href="/dashboard/showcase/">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Витрина
+      </a>
+      <a class="nav-link {% if active == 'categories' %}active{% endif %}" href="/dashboard/categories/">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+        Категории
+      </a>
+      <div class="nav-section" style="margin-top:8px">Аккаунт</div>
+      <a class="nav-link {% if active == 'profile' %}active{% endif %}" href="/dashboard/profile/">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        Профиль
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <a href="/">← На сайт</a>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="dash-main">
+    <div class="topbar">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="burger-dash" id="burgerDash" aria-label="Меню">☰</button>
+        <span class="topbar-title">{% block topbar_title %}Дашборд{% endblock %}</span>
+      </div>
+      <div class="topbar-user">
+        <span>{{ request.user.username }}</span>
+        <form method="post" action="/dashboard/logout/" style="display:inline">
+          {% csrf_token %}
+          <button type="submit" class="btn-logout">Выйти</button>
+        </form>
+      </div>
+    </div>
+    <div class="dash-content">
+      {% if messages %}
+        {% for msg in messages %}
+          <div class="alert {% if msg.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">{{ msg }}</div>
+        {% endfor %}
+      {% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </div>
+</div>
+
+<script>
+  (function(){
+    var btn = document.getElementById('burgerDash');
+    var sidebar = document.getElementById('sidebar');
+    var overlay = document.getElementById('sidebarOverlay');
+    if (!btn) return;
+    btn.addEventListener('click', function(){
+      sidebar.classList.toggle('open');
+      overlay.classList.toggle('open');
+    });
+    overlay.addEventListener('click', function(){
+      sidebar.classList.remove('open');
+      overlay.classList.remove('open');
+    });
+    window.addEventListener('resize', function(){ if(window.innerWidth > 900){ sidebar.classList.remove('open'); overlay.classList.remove('open'); } });
+  })();
+
+  function csrfToken() {
+    return document.cookie.split('; ').reduce(function(acc, c) {
+      var p = c.split('=');
+      return p[0] === 'csrftoken' ? decodeURIComponent(p[1]) : acc;
+    }, '');
+  }
+
+  function showAlert(msg, type) {
+    var el = document.createElement('div');
+    el.className = 'alert ' + (type === 'error' ? 'alert-error' : 'alert-success');
+    el.textContent = msg;
+    var content = document.querySelector('.dash-content');
+    content.insertBefore(el, content.firstChild);
+    setTimeout(function(){ el.remove(); }, 3500);
+  }
+</script>
+{% block extra_scripts %}{% endblock %}
+</body>
+</html>

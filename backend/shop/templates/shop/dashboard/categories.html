@@ -1,0 +1,111 @@
+{% extends "shop/dashboard/base_dashboard.html" %}
+{% block title %}Категории{% endblock %}
+{% block topbar_title %}Категории{% endblock %}
+
+{% block extra_styles %}
+<style>
+  .cats-layout{display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
+  .cat-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--Border)}
+  .cat-row:last-child{border-bottom:none}
+  .cat-name{flex:1;font-weight:600;font-size:14px}
+  .cat-count{font-size:13px;color:var(--Muted);flex-shrink:0}
+  .sort-input{width:60px;padding:4px 6px;border:1px solid var(--Border);border-radius:6px;font-size:13px;text-align:center}
+  @media(max-width:900px){.cats-layout{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cats-layout">
+  <!-- Список категорий -->
+  <div class="card">
+    <div class="card-title">Категории ({{ categories|length }})</div>
+    {% for cat in categories %}
+    <div class="cat-row" id="cat-{{ cat.id }}">
+      <span class="cat-name">
+        {% if cat.parent %}↳ {% endif %}{{ cat.name }}
+      </span>
+      <span class="cat-count">{{ cat.products_count }} тов.</span>
+      <input class="sort-input" type="number" min="0" value="{{ cat.sort_order }}"
+        onchange="saveCatSort({{ cat.id }}, this.value)" title="Порядок сортировки">
+      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteCat({{ cat.id }}, '{{ cat.name|escapejs }}')" title="Удалить">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </button>
+    </div>
+    {% empty %}
+    <div style="color:var(--Muted);text-align:center;padding:24px">Категорий пока нет</div>
+    {% endfor %}
+  </div>
+
+  <!-- Форма добавления -->
+  <div style="position:sticky;top:76px">
+    <div class="card">
+      <div class="card-title">Новая категория</div>
+      <form onsubmit="createCategory(event)">
+        <div class="form-row">
+          <label>Название *</label>
+          <input type="text" id="catName" placeholder="Название категории" required>
+        </div>
+        <div class="form-row">
+          <label>Родительская категория</label>
+          <select id="catParent">
+            <option value="">— Без родителя (корневая) —</option>
+            {% for cat in root_categories %}
+            <option value="{{ cat.id }}">{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Порядок сортировки</label>
+          <input type="number" id="catSort" value="0" min="0" style="max-width:100px">
+        </div>
+        <button type="submit" class="btn btn-primary">Добавить категорию</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function createCategory(e) {
+    e.preventDefault();
+    var name = document.getElementById('catName').value.trim();
+    var parent = document.getElementById('catParent').value;
+    var sort = parseInt(document.getElementById('catSort').value) || 0;
+    if (!name) return;
+    fetch('/dashboard/api/category/create/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+      body: JSON.stringify({name: name, parent: parent || null, sort_order: sort})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) { showAlert('Категория создана', 'success'); location.reload(); }
+      else showAlert(data.error || 'Ошибка', 'error');
+    });
+  }
+
+  function saveCatSort(id, val) {
+    fetch('/dashboard/api/category/' + id + '/sort/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+      body: JSON.stringify({sort_order: parseInt(val) || 0})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) { if (!data.ok) showAlert('Ошибка', 'error'); });
+  }
+
+  function deleteCat(id, name) {
+    if (!confirm('Удалить категорию "' + name + '"? Товары не удалятся.')) return;
+    fetch('/dashboard/api/category/' + id + '/delete/', {
+      method: 'POST',
+      headers: {'X-CSRFToken': csrfToken()}
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) { var el = document.getElementById('cat-' + id); if (el) el.remove(); showAlert('Категория удалена', 'success'); }
+      else showAlert(data.error || 'Ошибка', 'error');
+    });
+  }
+</script>
+{% endblock %}

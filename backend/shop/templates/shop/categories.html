@@ -1,0 +1,26 @@
+{% extends "shop/base.html" %}
+{% block title %}Категории - Buket{% endblock %}
+{% block extra_styles %}
+<style>
+  .wrap{max-width:1200px;margin:0 auto;padding:20px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:16px}
+  .card{border:1px solid #e5e7eb;border-radius:12px;padding:14px;text-decoration:none;color:inherit}
+  .card:hover{border-color:#166534}
+  h1{margin:0;color:#166534}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wrap">
+  <h1>Категории</h1>
+  <div class="grid">
+    {% for c in categories %}
+      <a class="card" href="/store/?category={{ c.name|urlencode }}">
+        <div><strong>{{ c.name }}</strong></div>
+        <div class="muted">Товаров: {{ c.products.count }}</div>
+      </a>
+    {% empty %}
+      <div class="muted">Категорий пока нет.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

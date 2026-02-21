@@ -1,0 +1,30 @@
+{% extends "shop/base.html" %}
+{% block title %}Отзывы - Buket{% endblock %}
+{% block extra_styles %}
+<style>
+  .wrap{max-width:1200px;margin:0 auto;padding:20px}
+  h1{margin:0;color:#166534}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:16px}
+  .card{border:1px solid #e5e7eb;border-radius:12px;padding:12px}
+  .stars{color:#f59e0b}
+</style>
+{% endblock %}
+{% block content %}
+<div class="wrap">
+  <h1>Отзывы клиентов</h1>
+  <div class="grid">
+    {% for r in reviews %}
+      <div class="card">
+        <div><strong>{{ r.company|default:r.author }}</strong></div>
+        <div class="muted">{{ r.author }}</div>
+        <p class="desc-text">{{ r.text }}</p>
+        <div class="stars">
+          {% if r.rating == 5 %}★★★★★{% elif r.rating == 4 %}★★★★☆{% elif r.rating == 3 %}★★★☆☆{% elif r.rating == 2 %}★★☆☆☆{% else %}★☆☆☆☆{% endif %}
+        </div>
+      </div>
+    {% empty %}
+      <div class="muted">Пока нет опубликованных отзывов.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

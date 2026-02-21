@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import AddToCard from "@/components/AddToCard";
 import CardPrice from "@/components/CardPrice";
 import { IEachProduct } from "@/types/types";
 import { IWebServiceResult } from "@/services/BaseService";
@@ -63,27 +62,22 @@ const TodayShowcase = () => {
         {!loading && (
           <div className="mt-5 grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {products.map((item) => (
-              <article key={item.id} className="border rounded-xl p-3 flex flex-col gap-3 bg-white shadow-[0_10px_24px_rgba(16,24,40,0.08)] hover:shadow-[0_16px_30px_rgba(16,24,40,0.16)] transition-all duration-300">
-                <Link href={`${Links.store(lang)}/${item.id}`} className="block">
-                  <div className="group relative w-full aspect-square rounded-md overflow-hidden bg-(--SoftBg)">
-                    <img
-                      src={getImageSrc(item)}
-                      alt={item.title}
-                      className="absolute inset-0 w-full h-full object-cover opacity-100 group-hover:opacity-0 transition-opacity duration-300"
-                    />
-                    <img
-                      src={getHoverImageSrc(item)}
-                      alt={`${item.title} hover`}
-                      className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    />
-                  </div>
-                </Link>
-                <Link href={`${Links.store(lang)}/${item.id}`} className="font-medium text-(--PrimaryDark)">
-                  {item.title}
-                </Link>
+              <Link key={item.id} href={`${Links.store(lang)}/${item.id}`} className="border rounded-xl p-3 flex flex-col gap-3 bg-white shadow-[0_10px_24px_rgba(16,24,40,0.08)] hover:shadow-[0_16px_30px_rgba(16,24,40,0.16)] transition-all duration-300">
+                <div className="group relative w-full aspect-square rounded-md overflow-hidden bg-(--SoftBg)">
+                  <img
+                    src={getImageSrc(item)}
+                    alt={item.title}
+                    className="absolute inset-0 w-full h-full object-cover opacity-100 group-hover:opacity-0 transition-opacity duration-300"
+                  />
+                  <img
+                    src={getHoverImageSrc(item)}
+                    alt={`${item.title} hover`}
+                    className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                  />
+                </div>
+                <span className="font-medium text-(--PrimaryDark)">{item.title}</span>
                 <CardPrice price={item.price} />
-                <AddToCard id={item.id} />
-              </article>
+              </Link>
             ))}
           </div>
         )}

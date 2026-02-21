@@ -56,7 +56,7 @@ class Product(models.Model):
     title = models.CharField(max_length=100, verbose_name='Название')
     article = models.CharField(max_length=64, blank=True, default="", verbose_name='Артикул')
     description = models.TextField(blank=True, verbose_name='Описание')
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Цена')
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, verbose_name='Цена')
     image = models.URLField(max_length=200, blank=True, default='', verbose_name='Изображение (URL)')
     uploaded_image = models.ImageField(
         upload_to='products/',
@@ -73,14 +73,25 @@ class Product(models.Model):
     )
     showcase_sort_order = models.PositiveIntegerField(default=0, verbose_name='Порядок в витрине')
     category = models.ForeignKey('Category', on_delete=models.SET_NULL, null=True, blank=True,
-                                    related_name='products', verbose_name='Категория')
-    store = models.ForeignKey(
-        'Store',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
+                                    related_name='main_products', verbose_name='Основная категория')
+    categories = models.ManyToManyField('Category', related_name='products', blank=True,
+                                          verbose_name='Категории')
+    flower_tags = models.ManyToManyField(
+        'FlowerTag',
         related_name='products',
-        verbose_name='Магазин',
+        blank=True,
+        verbose_name='Состав (цветы)',
+    )
+    stores = models.ManyToManyField(
+        'Store',
+        related_name='products_m2m',
+        blank=True,
+        verbose_name='Магазины',
+    )
+    slug = models.SlugField(
+        max_length=120, unique=True, blank=True, default='',
+        verbose_name='Slug (ЧПУ)',
+        help_text='Заполняется автоматически из названия или старой БД',
     )
     is_published = models.BooleanField(default=True, verbose_name='Опубликован')
     created_by = models.ForeignKey(
@@ -98,6 +109,28 @@ class Product(models.Model):
     class Meta:
         verbose_name = 'Товар'
         verbose_name_plural = 'Товары'
+
+
+class ProductImage(models.Model):
+    product = models.ForeignKey(
+        'Product',
+        on_delete=models.CASCADE,
+        related_name='images',
+        verbose_name='Товар',
+    )
+    image = models.ImageField(
+        upload_to='products/',
+        verbose_name='Изображение',
+    )
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
+
+    def __str__(self):
+        return f'{self.product.title} - фото {self.sort_order}'
+
+    class Meta:
+        verbose_name = 'Фото товара'
+        verbose_name_plural = 'Фото товаров'
+        ordering = ('sort_order',)
 
 
 class Discount(models.Model):
@@ -138,15 +171,43 @@ class OrderItem(models.Model):
         verbose_name_plural = 'Позиции заказа'
 
 
-class Category(models.Model):
-    name = models.CharField(max_length=100, unique=True, verbose_name='Название')
+class FlowerTag(models.Model):
+    name = models.CharField(max_length=100, unique=True, verbose_name='Название цветка')
+    slug = models.SlugField(max_length=120, unique=True, blank=True, default='', verbose_name='Slug (ЧПУ)')
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
 
     def __str__(self):
         return self.name
 
     class Meta:
+        verbose_name = 'Тег (цветок)'
+        verbose_name_plural = 'Теги (цветы)'
+        ordering = ('sort_order', 'name')
+
+
+class Category(models.Model):
+    name = models.CharField(max_length=100, verbose_name='Название')
+    slug = models.SlugField(max_length=120, blank=True, default='', verbose_name='Slug (ЧПУ)')
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='children',
+        verbose_name='Родительская категория',
+    )
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
+
+    def __str__(self):
+        if self.parent:
+            return f'{self.parent.name} → {self.name}'
+        return self.name
+
+    class Meta:
         verbose_name = 'Категория'
         verbose_name_plural = 'Категории'
+        ordering = ('sort_order', 'name')
+        unique_together = ('name', 'parent')
 
 
 class Review(models.Model):
@@ -176,10 +237,11 @@ class HeroBanner(models.Model):
     name = models.CharField(max_length=200, verbose_name='Название кампании')
     title = models.CharField(max_length=255, verbose_name='Заголовок')
     caption = models.CharField(max_length=255, blank=True, default='', verbose_name='Подзаголовок')
+    overview = models.TextField(blank=True, default='', verbose_name='Обзор')
     button_text = models.CharField(max_length=80, blank=True, default='Перейти в каталог', verbose_name='Текст кнопки')
     button_url = models.CharField(max_length=255, blank=True, default='/store', verbose_name='Ссылка кнопки')
-    desktop_image = models.URLField(max_length=500, verbose_name='Изображение desktop (URL)')
-    mobile_image = models.URLField(max_length=500, blank=True, default='', verbose_name='Изображение mobile (URL)')
+    desktop_image = models.ImageField(upload_to='hero_banners/', verbose_name='Изображение desktop')
+    mobile_image = models.ImageField(upload_to='hero_banners/', blank=True, null=True, verbose_name='Изображение mobile')
     is_active = models.BooleanField(default=True, verbose_name='Активен')
     starts_on = models.DateField(null=True, blank=True, verbose_name='Дата начала')
     ends_on = models.DateField(null=True, blank=True, verbose_name='Дата окончания')
@@ -190,7 +252,45 @@ class HeroBanner(models.Model):
     def __str__(self):
         return self.name
 
+    @staticmethod
+    def _media_or_legacy_url(field_file):
+        if not field_file:
+            return ''
+        raw_value = str(field_file)
+        if raw_value.startswith(('http://', 'https://', '/')):
+            return raw_value
+        try:
+            return field_file.url
+        except Exception:
+            return raw_value
+
+    @property
+    def desktop_image_url(self):
+        return self._media_or_legacy_url(self.desktop_image)
+
+    @property
+    def mobile_image_url(self):
+        if self.mobile_image:
+            return self._media_or_legacy_url(self.mobile_image)
+        return self.desktop_image_url
+
     class Meta:
         ordering = ('sort_order', '-created_at')
         verbose_name = 'Hero-баннер'
         verbose_name_plural = 'Hero-баннеры'
+
+
+class SitePage(models.Model):
+    slug = models.SlugField(max_length=60, unique=True, verbose_name='URL (slug)')
+    title = models.CharField(max_length=200, verbose_name='Заголовок')
+    content = models.TextField(verbose_name='Содержимое (HTML)')
+    is_active = models.BooleanField(default=True, verbose_name='Активна')
+    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='Порядок в меню')
+
+    class Meta:
+        ordering = ('sort_order', 'title')
+        verbose_name = 'Страница сайта'
+        verbose_name_plural = 'Страницы сайта'
+
+    def __str__(self):
+        return self.title

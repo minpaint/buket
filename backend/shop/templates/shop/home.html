@@ -1,0 +1,272 @@
+{% extends "shop/base.html" %}
+{% block title %}Buket{% endblock %}
+{% block extra_styles %}
+<style>
+  .container{max-width:1280px;margin:0 auto;padding:0 20px}
+  .hero{position:relative;min-height:52vh;background:#1f2937;color:#fff;overflow:hidden}
+  .hero-bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:1;transition:opacity .5s}
+  .hero-inner{position:relative;z-index:1;display:flex;min-height:52vh;align-items:center;justify-content:center;padding:28px 16px}
+  .hero-card{max-width:860px;border:1px solid rgba(255,255,255,.28);background:linear-gradient(to bottom,rgba(8,15,22,.52),rgba(8,15,22,.68));backdrop-filter:blur(10px);border-radius:28px;padding:26px 24px;text-align:center;color:#fff;box-shadow:0 14px 36px rgba(0,0,0,.35)}
+  .hero-card h1{margin:6px 0 10px;font-size:44px;line-height:1.15}
+  .hero-card p{margin:0;color:rgba(255,255,255,.9);font-size:18px}
+  .hero-card .desc-text{color:rgba(255,255,255,.9)}
+  .hero-btn{display:inline-block;margin-top:20px;background:var(--Accent);color:#fff;border-radius:999px;padding:12px 26px;font-weight:700}
+  .hero-nav{position:absolute;top:50%;transform:translateY(-50%);z-index:2;width:42px;height:42px;border:none;border-radius:999px;background:rgba(255,255,255,.8);cursor:pointer;font-weight:700}
+  .hero-prev{left:14px}.hero-next{right:14px}
+  .hero-dots{position:absolute;left:50%;transform:translateX(-50%);bottom:14px;display:flex;gap:8px;z-index:2}
+  .hero-dot{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.65);border:none;cursor:pointer}
+  .hero-dot.active{width:30px;border-radius:999px;background:#fff}
+  .section{padding:34px 0}
+  .showcase-wrap{border:1px solid rgba(34,139,34,.2);border-radius:18px;background:#fff;padding:20px}
+  .title{font-size:38px;color:var(--PrimaryDark);margin:0}
+  .subtitle{color:#000;margin:10px 0 0;font-size:16px}
+  .grid{display:grid;gap:16px}
+  .grid-4{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .grid-3{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+  .product-card,.category-card,.review-card{background:#fff;border:1px solid rgba(34,139,34,.14);border-radius:14px;overflow:hidden;box-shadow:0 10px 24px rgba(16,24,40,.08);transition:all .3s;display:flex;flex-direction:column}
+  .product-card:hover,.category-card:hover,.review-card:hover{box-shadow:0 16px 30px rgba(16,24,40,.16)}
+  .media{position:relative;width:100%;aspect-ratio:1/1;background:var(--SoftBg);overflow:hidden;flex-shrink:0}
+  .media img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:opacity .3s}
+  .media .hover{opacity:0}
+  .card:hover .media .hover{opacity:1}
+  .card:hover .media .main{opacity:0}
+  .pad{padding:12px 14px;flex:1;display:flex;flex-direction:column;justify-content:space-between}
+  .name{font-size:15px;font-weight:600;color:var(--PrimaryDark);margin:0 0 8px;line-height:1.35;flex:1}
+  .price-tag{margin:0;display:inline-flex;align-items:baseline;gap:3px;flex-shrink:0}
+  .price-amount{font-size:18px;font-weight:700;color:var(--PrimaryDark);line-height:1}
+  .price-currency{font-size:11px;font-weight:600;color:var(--PrimaryDark);opacity:.7;letter-spacing:.04em;text-transform:uppercase}
+  .price-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:4px}
+  .badge-instock{
+    position:absolute;top:12px;left:0;
+    background:linear-gradient(135deg,#ea580c,#f97316);
+    color:#fff;font-size:11px;font-weight:700;
+    padding:4px 10px 4px 10px;
+    border-radius:0 999px 999px 0;
+    box-shadow:0 2px 8px rgba(249,115,22,.35);
+    letter-spacing:.03em;
+    display:inline-flex;align-items:center;gap:5px;
+    line-height:1.4;
+    z-index:2;
+  }
+  .badge-instock::before{content:'✦';font-size:9px;opacity:.9}
+  .order-btn{
+    flex-shrink:0;
+    background:#166534;color:#fff;
+    border:none;border-radius:999px;cursor:pointer;
+    font-size:12px;font-weight:700;
+    padding:6px 12px;
+    display:inline-flex;align-items:center;
+    transition:background .2s;
+    white-space:nowrap;
+    position:relative;z-index:2;
+  }
+  .order-btn:hover{background:#14532d}
+  .order-btn.in-cart{background:#f97316}
+  @media(max-width:560px){.order-btn{font-size:11px;padding:5px 10px}}
+  .action-center{text-align:center;margin-top:20px}
+  .btn-main{display:inline-block;background:var(--Primary);color:#fff;border-radius:999px;padding:12px 24px}
+  .reviews-wrap{margin-top:20px;border:1px solid rgba(34,139,34,.15);border-radius:16px;background:#fff;padding:20px}
+  .review-top{display:flex;align-items:center;gap:10px}
+  .avatar{width:40px;height:40px;border-radius:50%;background:#d1fae5;object-fit:cover}
+  .stars{color:#f59e0b;letter-spacing:1px;font-size:14px}
+  .stores{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  .store-chip{background:#f3f4f6;border-radius:999px;padding:6px 10px;font-size:13px}
+  @media (max-width:900px){
+    .container{padding:0 12px}
+    .section{padding:22px 0}
+    .showcase-wrap,.reviews-wrap{padding:14px}
+    .hero-card h1{font-size:32px}
+    .title{font-size:30px}
+  }
+  .price-undef{font-size:13px;color:#6b7280;font-style:italic}
+  @media (max-width:560px){
+    .hero{min-height:42vh}
+    .hero-inner{min-height:42vh;padding:20px 12px}
+    .hero-card{padding:16px 14px;border-radius:18px}
+    .hero-card h1{font-size:24px}
+    .hero-card p{font-size:15px}
+    .hero-btn{width:100%;padding:10px 14px}
+    .hero-nav{width:34px;height:34px}
+    .grid-4{grid-template-columns:1fr 1fr}
+    .grid-3{grid-template-columns:1fr}
+    .name{font-size:16px}
+    .title{font-size:24px}
+  }
+</style>
+{% endblock %}
+{% block content %}
+<section class="hero" id="hero">
+  {% if active_banners %}
+    {% for b in active_banners %}
+      <div class="hero-bg" data-slide="{{ forloop.counter0 }}" style="background-image:url('{{ b.desktop_image_url }}');{% if not forloop.first %}display:none{% endif %}"></div>
+    {% endfor %}
+  {% else %}
+    <div class="hero-bg" data-slide="0" style="background-image:url('/static/hero/today-desktop.svg');"></div>
+  {% endif %}
+  <div class="hero-inner">
+    <div class="hero-card">
+      {% if active_banners %}
+        <h1 id="hero-title">{{ active_banners.0.title }}</h1>
+        <p id="hero-caption" class="desc-text">{{ active_banners.0.caption }}</p>
+        <p id="hero-overview" class="desc-text">{{ active_banners.0.overview }}</p>
+        <a id="hero-btn" class="hero-btn" href="{{ active_banners.0.button_url|default:'/store/' }}">{{ active_banners.0.button_text|default:'Смотреть каталог' }}</a>
+      {% else %}
+        <h1 id="hero-title">Доставка цветов по Минску</h1>
+        <p id="hero-caption" class="desc-text">Авторские букеты и ONLINE витрина на сегодня</p>
+        <p id="hero-overview" class="desc-text"></p>
+        <a id="hero-btn" class="hero-btn" href="/store/">Смотреть каталог</a>
+      {% endif %}
+    </div>
+  </div>
+  {% if active_banners|length > 1 %}
+    <button class="hero-nav hero-prev" id="hero-prev" type="button">&lt;</button>
+    <button class="hero-nav hero-next" id="hero-next" type="button">&gt;</button>
+    <div class="hero-dots" id="hero-dots">
+      {% for b in active_banners %}
+        <button type="button" class="hero-dot {% if forloop.first %}active{% endif %}" data-dot="{{ forloop.counter0 }}"></button>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>
+
+<main class="container">
+  <section class="section">
+    <div class="showcase-wrap">
+      <h2 class="title">Сегодня в наличии</h2>
+      <p class="subtitle desc-text">ONLINE витрина, собранная сегодня прямо из холодильника.</p>
+      <div class="grid grid-4" style="margin-top:16px">
+        {% for p in showcase_cards %}
+          <a class="product-card card" href="{{ p.href }}">
+            <div class="media">
+              <img class="main" src="{{ p.image }}" alt="{{ p.title }}">
+              <img class="hover" src="{{ p.hover_image }}" alt="{{ p.title }}">
+              <span class="badge-instock">В наличии</span>
+            </div>
+            <div class="pad">
+              <p class="name">{{ p.title }}</p>
+              <div class="price-row">
+                {% if p.price %}
+                  <p class="price-tag" style="margin:0">
+                    <span class="price-amount">{{ p.price|floatformat:"-2" }}</span>
+                    <span class="price-currency">BYN</span>
+                  </p>
+                {% else %}
+                  <span class="price-undef">Цену уточняйте</span>
+                {% endif %}
+                <span class="order-btn">Купить</span>
+              </div>
+            </div>
+          </a>
+        {% empty %}
+          <p class="muted">Пока нет товаров в ONLINE витрине.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:6px">
+    <h2 class="title">Категории каталога</h2>
+    <p class="subtitle desc-text">Выберите раздел и перейдите в подходящую подборку букетов.</p>
+    <div class="grid grid-4" style="margin-top:18px">
+      {% for c in category_cards %}
+        <a href="{{ c.href }}" class="category-card card">
+          <div class="media">
+            <img class="main" src="{{ c.image }}" alt="{{ c.name }}">
+            <img class="hover" src="{{ c.hover_image }}" alt="{{ c.name }}">
+          </div>
+          <div class="pad">
+            <p class="name">{{ c.name }}</p>
+          </div>
+        </a>
+      {% empty %}
+        <p class="muted">Категории пока не заполнены.</p>
+      {% endfor %}
+    </div>
+    <div class="action-center">
+      <a class="btn-main" href="/store/">Все категории</a>
+    </div>
+  </section>
+
+  <section class="section" style="padding-top:10px">
+    <div class="reviews-wrap">
+      <h2 class="title" style="font-size:34px">Отзывы клиентов</h2>
+      <p class="subtitle desc-text">Раздел заполняется из админки Django.</p>
+      <div class="grid grid-3" style="margin-top:16px">
+        {% for r in reviews %}
+          <article class="review-card">
+            <div class="pad">
+              <div class="review-top">
+                {% if r.image %}
+                  <img class="avatar" src="{{ r.image }}" alt="{{ r.author }}">
+                {% else %}
+                  <div class="avatar"></div>
+                {% endif %}
+                <div>
+                  <div style="font-weight:700;color:var(--PrimaryDark)">{{ r.company|default:r.author }}</div>
+                  <div class="muted" style="font-size:12px">{{ r.author }}</div>
+                </div>
+              </div>
+              <p class="desc-text" style="margin:10px 0 8px;line-height:1.45">{{ r.text|truncatechars:180 }}</p>
+              <div class="stars">
+                {% if r.rating == 5 %}★★★★★{% elif r.rating == 4 %}★★★★☆{% elif r.rating == 3 %}★★★☆☆{% elif r.rating == 2 %}★★☆☆☆{% else %}★☆☆☆☆{% endif %}
+              </div>
+            </div>
+          </article>
+        {% empty %}
+          <p class="muted">Отзывов пока нет.</p>
+        {% endfor %}
+      </div>
+      <div class="stores">
+        {% for store in stores %}
+          <span class="store-chip">{{ store.name }}{% if store.subdomain %} · {{ store.subdomain }}{% endif %}</span>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+</main>
+{% endblock %}
+{% block extra_scripts %}
+{% if active_banners|length > 1 %}
+<script>
+  (function(){
+    const slides = Array.from(document.querySelectorAll(".hero-bg"));
+    const dots = Array.from(document.querySelectorAll(".hero-dot"));
+    const banners = [
+      {% for b in active_banners %}
+        {
+          title: "{{ b.title|default:''|escapejs }}",
+          caption: "{{ b.caption|default:''|escapejs }}",
+          overview: "{{ b.overview|default:''|escapejs }}",
+          buttonText: "{{ b.button_text|default:'Смотреть каталог'|escapejs }}",
+          buttonUrl: "{{ b.button_url|default:'/store/'|escapejs }}"
+        }{% if not forloop.last %},{% endif %}
+      {% endfor %}
+    ];
+    const title = document.getElementById("hero-title");
+    const caption = document.getElementById("hero-caption");
+    const overview = document.getElementById("hero-overview");
+    const btn = document.getElementById("hero-btn");
+    const prev = document.getElementById("hero-prev");
+    const next = document.getElementById("hero-next");
+    let idx = 0;
+
+    function paint(i){
+      idx = i;
+      slides.forEach((el, n) => { el.style.display = n === i ? "block" : "none"; });
+      dots.forEach((d, n) => d.classList.toggle("active", n === i));
+      title.textContent = banners[i].title || "";
+      caption.textContent = banners[i].caption || "";
+      overview.textContent = banners[i].overview || "";
+      btn.textContent = banners[i].buttonText || "Смотреть каталог";
+      btn.setAttribute("href", banners[i].buttonUrl || "/store/");
+    }
+    function nextSlide(){ paint((idx + 1) % slides.length); }
+    function prevSlide(){ paint((idx - 1 + slides.length) % slides.length); }
+    if (next) next.addEventListener("click", nextSlide);
+    if (prev) prev.addEventListener("click", prevSlide);
+    dots.forEach((d, n) => d.addEventListener("click", () => paint(n)));
+    setInterval(nextSlide, 5000);
+  })();
+</script>
+{% endif %}
+{% endblock %}

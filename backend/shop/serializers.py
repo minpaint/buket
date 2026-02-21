@@ -3,7 +3,19 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Product, Discount, OrderItem, Order, Category, Review, HeroBanner, Store, StoreManager
+from .models import Product, ProductImage, Discount, OrderItem, Order, Category, Review, HeroBanner, Store, StoreManager, FlowerTag
+
+
+class FlowerTagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FlowerTag
+        fields = ['id', 'name', 'sort_order']
+
+
+class ProductImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'image', 'sort_order']
 
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -13,6 +25,8 @@ class ProductSerializer(serializers.ModelSerializer):
         allow_null=True,
         required=False,
     )
+    images = ProductImageSerializer(many=True, read_only=True)
+    flower_tags = FlowerTagSerializer(many=True, read_only=True)
 
     class Meta:
         model = Product
@@ -35,7 +49,7 @@ class StoreManagerSerializer(serializers.ModelSerializer):
 
 class BotProductCreateSerializer(serializers.ModelSerializer):
     telegram_id = serializers.IntegerField(write_only=True)
-    store_id = serializers.PrimaryKeyRelatedField(source='store', queryset=Store.objects.filter(is_active=True))
+    store_id = serializers.PrimaryKeyRelatedField(queryset=Store.objects.filter(is_active=True), write_only=True)
 
     class Meta:
         model = Product
@@ -43,7 +57,7 @@ class BotProductCreateSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         telegram_id = attrs.get('telegram_id')
-        store = attrs.get('store')
+        store = attrs.get('store_id')
         manager = StoreManager.objects.filter(telegram_id=telegram_id, is_active=True).first()
         if not manager:
             raise serializers.ValidationError({'telegram_id': 'Пользователь не авторизован.'})
@@ -55,6 +69,7 @@ class BotProductCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data.pop('telegram_id', None)
+        store = validated_data.pop('store_id')
         manager = validated_data.pop('_manager')
         validated_data['created_by'] = manager
         validated_data['is_online_showcase'] = True
@@ -62,7 +77,9 @@ class BotProductCreateSerializer(serializers.ModelSerializer):
 
         if not validated_data.get('title'):
             validated_data['title'] = 'Букет'
-        return Product.objects.create(**validated_data)
+        product = Product.objects.create(**validated_data)
+        product.stores.set([store])
+        return product
 
 class DiscountSerializer(serializers.ModelSerializer):
     class Meta:
@@ -91,9 +108,17 @@ class OrderSerializer(serializers.ModelSerializer):
 
 
 class CategorySerializer(serializers.ModelSerializer):
+    children = serializers.SerializerMethodField()
+
     class Meta:
         model = Category
-        fields = '__all__'
+        fields = ['id', 'name', 'parent', 'sort_order', 'children']
+
+    def get_children(self, obj):
+        children = obj.children.all()
+        if children.exists():
+            return CategorySerializer(children, many=True).data
+        return []
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -132,9 +157,30 @@ class PublicReviewCreateSerializer(serializers.ModelSerializer):
 
 
 class HeroBannerSerializer(serializers.ModelSerializer):
+    desktop_image_url = serializers.CharField(read_only=True)
+    mobile_image_url = serializers.CharField(read_only=True)
+
     class Meta:
         model = HeroBanner
-        fields = '__all__'
+        fields = [
+            'id',
+            'name',
+            'title',
+            'caption',
+            'overview',
+            'button_text',
+            'button_url',
+            'desktop_image',
+            'mobile_image',
+            'desktop_image_url',
+            'mobile_image_url',
+            'is_active',
+            'starts_on',
+            'ends_on',
+            'sort_order',
+            'created_at',
+            'updated_at',
+        ]
 
 
 class RegisterSerializer(serializers.ModelSerializer):

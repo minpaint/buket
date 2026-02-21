@@ -1,0 +1,82 @@
+{% extends "shop/base.html" %}
+{% block title %}{{ product.title }} - Buket{% endblock %}
+{% block extra_styles %}
+<style>
+  .wrap{max-width:1100px;margin:0 auto;padding:20px}
+  .card{border:1px solid #e5e7eb;border-radius:14px;padding:16px}
+  .row{display:grid;grid-template-columns:minmax(260px,420px) 1fr;gap:18px}
+  .img{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:12px;background:#f3f9f1}
+  h1{margin:0 0 10px;color:#166534}
+  .btn-cart{
+    display:inline-flex;align-items:center;gap:10px;
+    background:#166534;color:#fff;
+    padding:13px 28px;border-radius:999px;
+    font-size:16px;font-weight:700;
+    border:none;cursor:pointer;
+    transition:background .2s;margin-top:20px;
+  }
+  .btn-cart:hover{background:#14532d}
+  .btn-cart.in-cart{background:#f97316}
+  .btn-cart.in-cart:hover{background:#ea6c10}
+  .flower-tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .flower-tag{
+    display:inline-block;padding:3px 11px;border-radius:999px;
+    background:#f0fdf4;border:1px solid #bbf7d0;
+    color:#166534;font-size:13px;font-weight:500;
+  }
+  @media (max-width:900px){
+    .wrap{padding:14px 12px}
+    .row{grid-template-columns:1fr}
+    h1{font-size:26px}
+    .btn-cart{width:100%;justify-content:center}
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="wrap">
+  <a href="/store/">← Назад в каталог</a>
+  <div class="card" style="margin-top:10px">
+    <div class="row">
+      <div><img class="img" src="{{ image_url }}" alt="{{ product.title }}"></div>
+      <div>
+        <h1>{{ product.title }}</h1>
+        <div class="muted">Артикул: {{ product.article|default:"-" }}</div>
+        <div class="price-text" style="font-size:28px;margin:10px 0">
+          {% if product.price %}{{ product.price }} BYN{% else %}Цену уточняйте{% endif %}
+        </div>
+        <div class="muted">Категория: {{ product.category.name|default:"Без категории" }}</div>
+        <div class="muted">Магазины:
+          {% with shops=product.stores.all %}
+            {% if shops %}
+              {% for s in shops %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+            {% else %}
+              -
+            {% endif %}
+          {% endwith %}
+        </div>
+        {% with tags=product.flower_tags.all %}
+          {% if tags %}
+          <div style="margin-top:12px">
+            <div class="muted" style="margin-bottom:6px">Состав:</div>
+            <div class="flower-tags">
+              {% for tag in tags %}
+                <a class="flower-tag" href="/store/flower/{{ tag.slug }}/" style="text-decoration:none">{{ tag.name }}</a>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+        {% endwith %}
+        <div class="desc-text" style="margin-top:16px;line-height:1.55">{{ product.description|safe }}</div>
+        <button class="btn-cart" id="btnAddCart" onclick="addToCart({{ product.id }}, this)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+          </svg>
+          <span id="btnCartText">В корзину</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}{% endblock %}

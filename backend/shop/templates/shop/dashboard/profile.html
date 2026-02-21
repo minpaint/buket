@@ -1,0 +1,53 @@
+{% extends "shop/dashboard/base_dashboard.html" %}
+{% block title %}Профиль{% endblock %}
+{% block topbar_title %}Профиль{% endblock %}
+
+{% block content %}
+<div style="max-width:480px">
+  <div class="card">
+    <div class="card-title">Данные аккаунта</div>
+    <form method="post" action="/dashboard/profile/">
+      {% csrf_token %}
+      <div class="form-grid">
+        <div class="form-row">
+          <label>Имя</label>
+          <input type="text" name="first_name" value="{{ request.user.first_name }}">
+        </div>
+        <div class="form-row">
+          <label>Фамилия</label>
+          <input type="text" name="last_name" value="{{ request.user.last_name }}">
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Логин</label>
+        <input type="text" name="username" value="{{ request.user.username }}" required>
+      </div>
+      <div class="form-row">
+        <label>Email</label>
+        <input type="email" name="email" value="{{ request.user.email }}">
+      </div>
+      <button type="submit" class="btn btn-primary">Сохранить</button>
+    </form>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Сменить пароль</div>
+    <form method="post" action="/dashboard/profile/password/">
+      {% csrf_token %}
+      <div class="form-row">
+        <label>Текущий пароль</label>
+        <input type="password" name="old_password" required autocomplete="current-password">
+      </div>
+      <div class="form-row">
+        <label>Новый пароль</label>
+        <input type="password" name="new_password" required autocomplete="new-password">
+      </div>
+      <div class="form-row">
+        <label>Повторите новый пароль</label>
+        <input type="password" name="confirm_password" required autocomplete="new-password">
+      </div>
+      <button type="submit" class="btn btn-primary">Сменить пароль</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

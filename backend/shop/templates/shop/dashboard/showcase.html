@@ -1,0 +1,139 @@
+{% extends "shop/dashboard/base_dashboard.html" %}
+{% block title %}Витрина{% endblock %}
+{% block topbar_title %}Онлайн-витрина{% endblock %}
+
+{% block extra_styles %}
+<style>
+  .showcase-layout{display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
+  .showcase-item{
+    display:flex;align-items:center;gap:12px;
+    padding:10px 12px;border:1px solid var(--Border);border-radius:10px;
+    background:#fff;margin-bottom:8px;
+  }
+  .showcase-img{width:52px;height:52px;object-fit:cover;border-radius:8px;background:#f3f9f1;flex-shrink:0}
+  .showcase-info{flex:1;min-width:0}
+  .showcase-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .showcase-sort{width:60px;padding:4px 6px;border:1px solid var(--Border);border-radius:6px;font-size:13px;text-align:center}
+  .product-pick{
+    display:flex;align-items:center;gap:10px;padding:8px 10px;
+    border:1px solid var(--Border);border-radius:8px;cursor:pointer;
+    transition:background .15s,border-color .15s;margin-bottom:6px;
+  }
+  .product-pick:hover{background:var(--SoftBg);border-color:var(--PrimaryDark)}
+  .product-pick img{width:36px;height:36px;object-fit:cover;border-radius:6px;background:#f3f9f1}
+  .product-pick-name{font-size:13px;font-weight:600;flex:1}
+  .product-pick-price{font-size:13px;color:var(--PrimaryDark);font-weight:700}
+  #pickSearch{width:100%;padding:8px 12px;border:1px solid var(--Border);border-radius:8px;font-size:14px;outline:none;margin-bottom:10px}
+  #pickSearch:focus{border-color:var(--PrimaryDark)}
+  @media(max-width:900px){.showcase-layout{grid-template-columns:1fr}}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="showcase-layout">
+  <!-- Левая: список витрины -->
+  <div>
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <span class="card-title" style="margin:0">В витрине ({{ showcase_products|length }})</span>
+        <button class="btn btn-secondary btn-sm" onclick="saveOrder()">Сохранить порядок</button>
+      </div>
+      <div id="showcaseList">
+        {% for p in showcase_products %}
+        <div class="showcase-item" data-id="{{ p.id }}">
+          <img class="showcase-img" src="{{ p.image_url }}" alt="{{ p.title }}">
+          <div class="showcase-info">
+            <div class="showcase-name">{{ p.title }}</div>
+            <div style="font-size:12px;color:var(--Muted)">{{ p.price|floatformat:"-2" }} BYN</div>
+          </div>
+          <input class="showcase-sort" type="number" min="0" value="{{ p.showcase_sort_order }}" title="Порядок">
+          <button class="btn btn-danger btn-sm btn-icon" onclick="removeFromShowcase({{ p.id }}, this)" title="Убрать из витрины">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        {% empty %}
+        <div style="text-align:center;color:var(--Muted);padding:24px">Витрина пуста</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Правая: поиск товаров для добавления -->
+  <div>
+    <div class="card" style="position:sticky;top:76px">
+      <div class="card-title">Добавить в витрину</div>
+      <input type="text" id="pickSearch" placeholder="Поиск товара…" oninput="filterPick()">
+      <div id="pickList" style="max-height:420px;overflow-y:auto">
+        {% for p in all_products %}
+        <div class="product-pick {% if p.is_online_showcase %}" style="opacity:.4;pointer-events:none{% endif %}"
+          data-id="{{ p.id }}" data-name="{{ p.title|lower }}"
+          onclick="addToShowcase({{ p.id }}, this)">
+          <img src="{{ p.image_url }}" alt="{{ p.title }}">
+          <span class="product-pick-name">{{ p.title }}</span>
+          <span class="product-pick-price">{{ p.price|floatformat:"-2" }}</span>
+          {% if p.is_online_showcase %}<span class="badge badge-green">✓</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function filterPick() {
+    var q = document.getElementById('pickSearch').value.toLowerCase();
+    document.querySelectorAll('#pickList .product-pick').forEach(function(el) {
+      el.style.display = (el.dataset.name || '').includes(q) ? '' : 'none';
+    });
+  }
+
+  function addToShowcase(id, el) {
+    fetch('/dashboard/api/product/' + id + '/showcase/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+      body: JSON.stringify({value: true})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) { showAlert('Добавлено в витрину', 'success'); location.reload(); }
+      else showAlert(data.error || 'Ошибка', 'error');
+    });
+  }
+
+  function removeFromShowcase(id, btn) {
+    fetch('/dashboard/api/product/' + id + '/showcase/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+      body: JSON.stringify({value: false})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        var row = btn.closest('.showcase-item');
+        if (row) row.remove();
+        showAlert('Убрано из витрины', 'success');
+      } else showAlert(data.error || 'Ошибка', 'error');
+    });
+  }
+
+  function saveOrder() {
+    var items = [];
+    document.querySelectorAll('#showcaseList .showcase-item').forEach(function(row) {
+      var sortInput = row.querySelector('.showcase-sort');
+      items.push({id: parseInt(row.dataset.id), sort: parseInt(sortInput.value) || 0});
+    });
+    fetch('/dashboard/api/showcase/order/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+      body: JSON.stringify({items: items})
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) showAlert('Порядок сохранён', 'success');
+      else showAlert(data.error || 'Ошибка', 'error');
+    });
+  }
+</script>
+{% endblock %}
