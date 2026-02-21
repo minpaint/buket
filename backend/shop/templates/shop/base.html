@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Buket{% endblock %}</title>
+  <style>
+    :root{
+      --Primary:#228b22;
+      --PrimaryDark:#166534;
+      --SoftBg:#f3f9f1;
+      --Accent:#f97316;
+      --Text:#111827;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:'Segoe UI','Noto Sans',Arial,sans-serif;
+      background:#fff;
+      color:var(--Text);
+      line-height:1.45;
+      letter-spacing:.1px;
+    }
+    h1,h2,h3,h4,h5,h6{
+      font-family:'Segoe UI','Noto Sans',Arial,sans-serif;
+      font-weight:500;line-height:1.2;margin:0;
+    }
+    p,span,a,li,button,input,textarea,select{
+      font-family:'Segoe UI','Noto Sans',Arial,sans-serif;
+    }
+    a{text-decoration:none;color:inherit}
+    .desc-text{font-family:'Segoe UI','Noto Sans',Arial,sans-serif;color:#000}
+    .muted{color:#6b7280;font-size:14px}
+    .price-text{font-family:'Segoe UI','Noto Sans',Arial,sans-serif;color:#000;font-weight:700;letter-spacing:0}
+
+    /* ── HEADER ── */
+    .site-header{position:sticky;top:0;z-index:40;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.07)}
+    .head-inner{max-width:1280px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+    .logo{display:flex;align-items:center}
+    .logo img{height:46px;width:auto}
+    .top-nav{display:flex;align-items:center;gap:26px;font-weight:700;color:var(--PrimaryDark)}
+    .top-nav a{padding-bottom:3px;border-bottom:2px solid transparent}
+    .top-nav a.active,.top-nav a:hover{border-bottom-color:var(--PrimaryDark)}
+    .head-actions{display:flex;align-items:center;gap:14px}
+    .icon-btn{display:inline-flex;align-items:center;justify-content:center;position:relative;cursor:pointer;background:none;border:none;padding:0}
+    .icon-btn img{width:30px;height:30px}
+    .cart-badge{
+      position:absolute;top:-5px;right:-7px;
+      background:var(--Accent);color:#fff;
+      font-size:10px;font-weight:700;
+      min-width:17px;height:17px;
+      border-radius:999px;
+      display:flex;align-items:center;justify-content:center;
+      padding:0 3px;line-height:1;border:2px solid #fff;
+    }
+    .login-btn{display:inline-flex;align-items:center;justify-content:center;background:#eef7ed;color:var(--PrimaryDark);padding:8px 12px;border-radius:999px;font-weight:700}
+    .burger-btn{display:none;border:none;background:transparent;font-size:28px;line-height:1;cursor:pointer;color:var(--PrimaryDark)}
+    .mobile-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:49}
+    .mobile-overlay.open{display:block}
+    .mobile-menu{position:fixed;left:0;top:0;bottom:0;width:84%;max-width:320px;background:#fff;border-right:1px solid #e5e7eb;box-shadow:0 8px 20px rgba(0,0,0,.08);transform:translateX(-101%);transition:transform .24s ease;z-index:50;overflow-y:auto}
+    .mobile-menu.open{transform:translateX(0)}
+    .mobile-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #f3f4f6}
+    .mobile-close{border:none;background:transparent;font-size:24px;color:#4b5563;cursor:pointer}
+    .mobile-menu a{display:block;padding:13px 14px;border-bottom:1px solid #f3f4f6;color:var(--PrimaryDark);font-weight:700}
+
+    /* ── МИНИ-КОРЗИНА (DRAWER) ── */
+    .cart-overlay{
+      display:none;position:fixed;inset:0;
+      background:rgba(0,0,0,.4);z-index:200;
+    }
+    .cart-overlay.open{display:block}
+    .cart-drawer{
+      position:fixed;top:0;right:0;bottom:0;
+      width:420px;max-width:100vw;
+      background:#fff;
+      box-shadow:-6px 0 28px rgba(0,0,0,.12);
+      z-index:201;
+      transform:translateX(101%);
+      transition:transform .28s cubic-bezier(.4,0,.2,1);
+      display:flex;flex-direction:column;
+    }
+    .cart-drawer.open{transform:translateX(0)}
+    .drawer-head{
+      display:flex;align-items:center;justify-content:space-between;
+      padding:16px 20px;
+      border-bottom:1px solid #e5e7eb;
+      flex-shrink:0;
+    }
+    .drawer-head h2{font-size:18px;font-weight:700;color:var(--PrimaryDark);margin:0}
+    .drawer-close{
+      background:none;border:none;cursor:pointer;
+      font-size:26px;color:#9ca3af;line-height:1;padding:2px 6px;
+      transition:color .15s;
+    }
+    .drawer-close:hover{color:var(--Text)}
+    .drawer-body{flex:1;overflow-y:auto;padding:14px 20px}
+    .drawer-empty{
+      display:flex;flex-direction:column;align-items:center;
+      justify-content:center;height:100%;
+      color:#9ca3af;gap:12px;text-align:center;
+    }
+    .drawer-empty svg{opacity:.25}
+    .drawer-empty p{font-size:15px;margin:0}
+    /* Строка товара в drawer */
+    .d-item{
+      display:grid;grid-template-columns:70px 1fr auto;
+      gap:12px;align-items:center;
+      padding:12px 0;border-bottom:1px solid #f3f4f6;
+    }
+    .d-item:last-child{border-bottom:none}
+    .d-img{width:70px;height:70px;object-fit:cover;border-radius:8px;background:#f3f9f1;flex-shrink:0}
+    .d-name{font-size:14px;font-weight:600;color:#1f2937;margin:0 0 4px;line-height:1.3}
+    .d-price{font-size:13px;color:#6b7280;margin:0}
+    .d-qty{display:flex;align-items:center;gap:0;margin-top:6px}
+    .d-qty-btn{
+      width:28px;height:28px;border:1px solid #d1d5db;background:#fff;
+      border-radius:6px;font-size:16px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      color:var(--PrimaryDark);transition:background .15s;
+      flex-shrink:0;
+    }
+    .d-qty-btn:hover:not(:disabled){background:var(--SoftBg)}
+    .d-qty-btn:disabled{opacity:.3;cursor:default}
+    .d-qty-val{width:32px;text-align:center;font-size:14px;font-weight:700;color:#111827}
+    .d-total{font-size:15px;font-weight:700;color:var(--PrimaryDark);white-space:nowrap}
+    .d-remove{background:none;border:none;cursor:pointer;color:#d1d5db;padding:4px;transition:color .15s;display:flex}
+    .d-remove:hover{color:#dc2626}
+    /* Footer drawer */
+    .drawer-foot{
+      border-top:1px solid #e5e7eb;padding:16px 20px;flex-shrink:0;
+      background:#fff;
+    }
+    .drawer-summary{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px}
+    .drawer-summary span:first-child{font-size:15px;color:#374151}
+    .drawer-total{font-size:20px;font-weight:700;color:var(--PrimaryDark)}
+    .btn-go-cart{
+      display:block;width:100%;padding:13px;
+      background:var(--PrimaryDark);color:#fff;
+      border:none;border-radius:999px;
+      font-size:16px;font-weight:700;cursor:pointer;
+      text-align:center;text-decoration:none;
+      transition:background .2s;margin-bottom:8px;
+    }
+    .btn-go-cart:hover{background:#14532d}
+    .btn-continue{
+      display:block;width:100%;padding:10px;
+      background:none;color:#6b7280;
+      border:1px solid #e5e7eb;border-radius:999px;
+      font-size:14px;font-weight:600;cursor:pointer;
+      text-align:center;transition:background .15s;
+    }
+    .btn-continue:hover{background:#f9fafb}
+
+    /* ── TOAST ── */
+    .toast{
+      position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+      background:#1f2937;color:#fff;
+      padding:10px 20px;border-radius:999px;
+      font-size:14px;font-weight:600;
+      opacity:0;transition:opacity .25s,transform .25s;
+      z-index:300;pointer-events:none;white-space:nowrap;
+    }
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+    /* ── FOOTER ── */
+    .site-footer{margin-top:26px;background:var(--SoftBg);box-shadow:0 -2px 10px rgba(0,0,0,.06)}
+    .foot-inner{max-width:1280px;margin:0 auto;padding:28px 20px;display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .foot-inner p{margin:0;color:var(--PrimaryDark);font-size:12px}
+    .foot-logo{height:44px;width:auto}
+
+    @media (max-width:900px){
+      .head-inner{padding:10px 12px}
+      .top-nav{display:none}
+      .login-btn{display:none}
+      .logo img{height:34px}
+      .head-actions{gap:8px}
+      .icon-btn img{width:26px;height:26px}
+      .burger-btn{display:block}
+      .foot-inner{flex-direction:column;text-align:center}
+    }
+    @media (max-width:480px){
+      .cart-drawer{width:100vw}
+      .drawer-head{padding:14px 14px}
+      .drawer-body{padding:10px 14px}
+      .drawer-foot{padding:14px 14px}
+    }
+  </style>
+  {% block extra_styles %}{% endblock %}
+</head>
+<body>
+  <header class="site-header">
+    <div class="head-inner">
+      <button class="burger-btn" id="burgerBtn" type="button" aria-label="Открыть меню">☰</button>
+      <a class="logo" href="/">
+        <img src="/static/logo.png" alt="Buket logo">
+      </a>
+      <nav class="top-nav">
+        <a href="/" class="{% if request.path == '/' %}active{% endif %}">Главная</a>
+        <a href="/store/" class="{% if request.path == '/store/' %}active{% endif %}">Все товары</a>
+        <a href="/reviews/" class="{% if request.path == '/reviews/' %}active{% endif %}">Отзывы</a>
+        <a href="/p/dostavka/" class="{% if request.path == '/p/dostavka/' %}active{% endif %}">Доставка</a>
+        <a href="/p/oplata/" class="{% if request.path == '/p/oplata/' %}active{% endif %}">Оплата</a>
+      </nav>
+      <div class="head-actions">
+        <button class="icon-btn" id="cartIconBtn" onclick="openCartDrawer()" title="Корзина" aria-label="Открыть корзину">
+          <img src="/static/Bag.svg" alt="Корзина">
+          <span class="cart-badge" id="cartBadge" style="display:none">0</span>
+        </button>
+        <a class="icon-btn" href="/dashboard/" title="Кабинет">
+          <img src="/static/Profile.svg" alt="Кабинет">
+        </a>
+      </div>
+    </div>
+    <div class="mobile-overlay" id="mobileOverlay"></div>
+    <div class="mobile-menu" id="mobileMenu">
+      <div class="mobile-head">
+        <strong>Меню</strong>
+        <button class="mobile-close" id="mobileClose" type="button" aria-label="Закрыть">×</button>
+      </div>
+      <a href="/">Главная</a>
+      <a href="/store/">Все товары</a>
+      <a href="/reviews/">Отзывы</a>
+      <a href="/p/dostavka/">Доставка</a>
+      <a href="/p/oplata/">Оплата</a>
+    </div>
+  </header>
+
+  <!-- Мини-корзина drawer -->
+  <div class="cart-overlay" id="cartOverlay" onclick="closeCartDrawer()"></div>
+  <div class="cart-drawer" id="cartDrawer">
+    <div class="drawer-head">
+      <h2>Корзина <span id="drawerCount" style="font-size:14px;color:#9ca3af;font-weight:400"></span></h2>
+      <button class="drawer-close" onclick="closeCartDrawer()" aria-label="Закрыть">×</button>
+    </div>
+    <div class="drawer-body" id="drawerBody">
+      <div class="drawer-empty">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4">
+          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
+        </svg>
+        <p>Корзина пуста</p>
+      </div>
+    </div>
+    <div class="drawer-foot" id="drawerFoot" style="display:none">
+      <div class="drawer-summary">
+        <span>Итого</span>
+        <span class="drawer-total" id="drawerTotal">0 BYN</span>
+      </div>
+      <a href="/cart/" class="btn-go-cart">Оформить заказ</a>
+      <button class="btn-continue" onclick="closeCartDrawer()">Продолжить покупки</button>
+    </div>
+  </div>
+
+  <!-- Toast уведомление -->
+  <div class="toast" id="toast"></div>
+
+  {% block content %}{% endblock %}
+
+  <footer class="site-footer">
+    <div class="foot-inner">
+      <p>Copyright © 2024 Buket.by. Все права защищены.</p>
+      <img class="foot-logo" src="/static/logo.png" alt="Buket logo">
+    </div>
+  </footer>
+
+  <script>
+    // ── CSRF ──
+    function csrfToken() {
+      return document.cookie.split('; ').reduce(function(acc, c) {
+        var p = c.split('=');
+        return p[0] === 'csrftoken' ? decodeURIComponent(p[1]) : acc;
+      }, '');
+    }
+
+    // ── TOAST ──
+    function showToast(msg) {
+      var t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(t._timer);
+      t._timer = setTimeout(function(){ t.classList.remove('show'); }, 2200);
+    }
+
+    // ── BADGE ──
+    function updateBadge(count) {
+      var badge = document.getElementById('cartBadge');
+      if (!badge) return;
+      if (count > 0) {
+        badge.textContent = count;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    // ── DRAWER ──
+    var drawerOpen = false;
+
+    function openCartDrawer() {
+      document.getElementById('cartOverlay').classList.add('open');
+      document.getElementById('cartDrawer').classList.add('open');
+      document.body.style.overflow = 'hidden';
+      drawerOpen = true;
+      loadDrawerItems();
+    }
+
+    function closeCartDrawer() {
+      document.getElementById('cartOverlay').classList.remove('open');
+      document.getElementById('cartDrawer').classList.remove('open');
+      document.body.style.overflow = '';
+      drawerOpen = false;
+    }
+
+    function fmt(n) {
+      var num = parseFloat(n);
+      return (Number.isInteger(num) ? num : num.toFixed(2)).toString().replace('.', ',') + ' BYN';
+    }
+
+    function loadDrawerItems() {
+      fetch('/cart/drawer/')
+        .then(function(r){ return r.json(); })
+        .then(function(data){ renderDrawer(data); });
+    }
+
+    function renderDrawer(data) {
+      var body = document.getElementById('drawerBody');
+      var foot = document.getElementById('drawerFoot');
+      var countEl = document.getElementById('drawerCount');
+      var totalEl = document.getElementById('drawerTotal');
+
+      if (!data.items || data.items.length === 0) {
+        body.innerHTML = '<div class="drawer-empty"><svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg><p>Корзина пуста</p></div>';
+        foot.style.display = 'none';
+        countEl.textContent = '';
+        updateBadge(0);
+        return;
+      }
+
+      var total = 0;
+      var html = '';
+      data.items.forEach(function(item) {
+        var hasPrice = item.price !== null && item.price !== undefined;
+        var lineTotal = hasPrice ? item.price * item.qty : null;
+        if (lineTotal !== null) total += lineTotal;
+        var priceLabel = hasPrice ? fmt(item.price) + ' × <span id="di-qty-label-' + item.id + '">' + item.qty + '</span>' : '<em>Цену уточняйте</em>';
+        var totalLabel = lineTotal !== null ? fmt(lineTotal) : '—';
+        html += '<div class="d-item" id="di-' + item.id + '">' +
+          '<img class="d-img" src="' + item.image_url + '" alt="' + item.title + '">' +
+          '<div>' +
+            '<p class="d-name">' + item.title + '</p>' +
+            '<p class="d-price">' + priceLabel + '</p>' +
+            '<div class="d-qty">' +
+              '<button class="d-qty-btn" onclick="drawerQty(' + item.id + ',-1)" id="di-minus-' + item.id + '"' + (item.qty <= 1 ? ' disabled' : '') + '>−</button>' +
+              '<span class="d-qty-val" id="di-qty-' + item.id + '">' + item.qty + '</span>' +
+              '<button class="d-qty-btn" onclick="drawerQty(' + item.id + ',1)" id="di-plus-' + item.id + '"' + (item.qty >= 99 ? ' disabled' : '') + '>+</button>' +
+            '</div>' +
+          '</div>' +
+          '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">' +
+            '<span class="d-total" id="di-total-' + item.id + '">' + totalLabel + '</span>' +
+            '<button class="d-remove" onclick="drawerRemove(' + item.id + ')" title="Удалить">' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>' +
+            '</button>' +
+          '</div>' +
+        '</div>';
+      });
+
+      body.innerHTML = html;
+      totalEl.textContent = total > 0 ? fmt(total) : 'Уточняйте';
+      countEl.textContent = '· ' + data.items.length + ' позиции';
+      foot.style.display = 'block';
+      updateBadge(data.cart_count);
+    }
+
+    function drawerQty(id, delta) {
+      var qtyEl = document.getElementById('di-qty-' + id);
+      var current = parseInt(qtyEl.textContent);
+      var newQty = Math.max(1, Math.min(99, current + delta));
+      if (newQty === current) return;
+
+      fetch('/cart/update/' + id + '/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+        body: JSON.stringify({qty: newQty})
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.ok) return;
+        loadDrawerItems();
+      });
+    }
+
+    function drawerRemove(id) {
+      fetch('/cart/remove/' + id + '/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken()}
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.ok) return;
+        loadDrawerItems();
+      });
+    }
+
+    // ── ГЛОБАЛЬНАЯ ФУНКЦИЯ ДОБАВЛЕНИЯ ──
+    function addToCart(productId, btnEl) {
+      var origText = btnEl ? (btnEl.querySelector('span') ? btnEl.querySelector('span').textContent : btnEl.textContent) : '';
+      if (btnEl) {
+        btnEl.disabled = true;
+        var spanEl = btnEl.querySelector('span');
+        if (spanEl) { spanEl.textContent = '✓ Добавлено'; }
+        else { btnEl.textContent = '✓ Добавлено'; }
+        btnEl.style.background = '#166534';
+      }
+      fetch('/cart/add/' + productId + '/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken()}
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        if (!data.ok) return;
+        updateBadge(data.cart_count);
+        showToast('Добавлено в корзину');
+        openCartDrawer();
+        setTimeout(function(){
+          if (btnEl) {
+            btnEl.disabled = false;
+            var spanEl = btnEl.querySelector('span');
+            if (spanEl) { spanEl.textContent = origText; }
+            else { btnEl.textContent = origText; }
+            btnEl.style.background = '';
+          }
+        }, 2000);
+      });
+    }
+
+    // ── ЗАГРУЗКА БЕЙДЖА ──
+    (function(){
+      fetch('/cart/count/')
+        .then(function(r){ return r.json(); })
+        .then(function(data){ updateBadge(data.cart_count); })
+        .catch(function(){});
+    })();
+
+    // ── МОБИЛЬНОЕ МЕНЮ ──
+    (function(){
+      var btn = document.getElementById('burgerBtn');
+      var menu = document.getElementById('mobileMenu');
+      var overlay = document.getElementById('mobileOverlay');
+      var closeBtn = document.getElementById('mobileClose');
+      if (!btn || !menu || !overlay) return;
+      function openMenu(){ menu.classList.add('open'); overlay.classList.add('open'); document.body.style.overflow = 'hidden'; }
+      function closeMenu(){ menu.classList.remove('open'); overlay.classList.remove('open'); document.body.style.overflow = ''; }
+      btn.addEventListener('click', openMenu);
+      if (closeBtn) closeBtn.addEventListener('click', closeMenu);
+      overlay.addEventListener('click', closeMenu);
+      menu.querySelectorAll('a').forEach(function(link){ link.addEventListener('click', closeMenu); });
+      window.addEventListener('resize', function(){ if (window.innerWidth > 900) closeMenu(); });
+    })();
+  </script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>
