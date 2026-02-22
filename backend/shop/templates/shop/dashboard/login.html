@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Вход — Buket.by</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --PrimaryDark:#1a4731;--SoftBg:#f3f9f1;--Border:#d1e8d4;--Text:#1f2937;
+    }
+    body{background:var(--SoftBg);display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui,sans-serif}
+    .login-wrap{background:#fff;border:1px solid var(--Border);border-radius:16px;padding:40px 36px;width:100%;max-width:380px;box-shadow:0 4px 24px rgba(0,0,0,.07)}
+    .login-logo{display:flex;justify-content:center;margin-bottom:28px}
+    .login-logo img{height:44px}
+    h1{font-size:20px;font-weight:700;color:var(--PrimaryDark);text-align:center;margin-bottom:24px}
+    .form-row{margin-bottom:16px}
+    .form-row label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px}
+    .form-row input{
+      width:100%;padding:10px 13px;
+      border:1px solid var(--Border);border-radius:8px;
+      font-size:15px;color:var(--Text);outline:none;transition:border-color .15s
+    }
+    .form-row input:focus{border-color:var(--PrimaryDark)}
+    .btn-login{
+      width:100%;padding:11px;background:var(--PrimaryDark);color:#fff;
+      border:none;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;
+      transition:opacity .15s;margin-top:4px
+    }
+    .btn-login:hover{opacity:.88}
+    .error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:14px;margin-bottom:18px}
+  </style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-logo">
+    <a href="/"><img src="/static/logo.png" alt="Buket"></a>
+  </div>
+  <h1>Вход в дашборд</h1>
+  {% if error %}
+  <div class="error">{{ error }}</div>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-row">
+      <label for="username">Логин</label>
+      <input type="text" id="username" name="username" autofocus autocomplete="username" required>
+    </div>
+    <div class="form-row">
+      <label for="password">Пароль</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit" class="btn-login">Войти</button>
+  </form>
+</div>
+</body>
+</html>

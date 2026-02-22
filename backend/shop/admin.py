@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Product, ProductImage, Discount, Order, OrderItem, Category, Review, HeroBanner, Store, StoreManager, StorePhone, StorePhoto, FlowerTag, SitePage
+from .models import Product, ProductImage, Discount, Order, OrderItem, Category, Review, HeroBanner, Store, StoreManager, StorePhone, StorePhoto, FlowerTag, SitePage, ShowcaseItem, Ticker
 
 admin.site.site_header = 'Администрирование Buket.by'
 admin.site.site_title = 'Buket.by Admin'
@@ -164,7 +164,18 @@ class CategoryAdmin(admin.ModelAdmin):
 admin.site.register(Discount)
 admin.site.register(Order)
 admin.site.register(OrderItem)
-admin.site.register(StoreManager)
+@admin.register(StoreManager)
+class StoreManagerAdmin(admin.ModelAdmin):
+    list_display = ('full_name', 'user', 'telegram_username', 'is_active', 'get_stores')
+    list_filter = ('is_active',)
+    search_fields = ('full_name', 'telegram_username', 'user__username')
+    filter_horizontal = ('stores',)
+    fields = ('user', 'full_name', 'telegram_id', 'telegram_username', 'stores', 'is_active')
+    raw_id_fields = ('user',)
+
+    def get_stores(self, obj):
+        return ', '.join(s.name for s in obj.stores.all())
+    get_stores.short_description = 'Магазины'
 
 
 class StorePhoneInline(admin.TabularInline):
@@ -204,8 +215,8 @@ class StoreAdmin(admin.ModelAdmin):
 
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
-    list_display = ('author', 'company', 'rating', 'is_published', 'sort_order', 'updated_at')
-    list_filter = ('is_published', 'rating')
+    list_display = ('author', 'company', 'store', 'rating', 'is_published', 'sort_order', 'created_at')
+    list_filter = ('is_published', 'rating', 'store')
     search_fields = ('author', 'company', 'text')
     list_editable = ('is_published', 'sort_order')
     readonly_fields = ('created_at', 'updated_at')
@@ -248,3 +259,22 @@ class SitePageAdmin(admin.ModelAdmin):
     list_editable = ('is_active', 'sort_order')
     prepopulated_fields = {'slug': ('title',)}
     fields = ('title', 'slug', 'content', 'is_active', 'sort_order')
+
+
+@admin.register(ShowcaseItem)
+class ShowcaseItemAdmin(admin.ModelAdmin):
+    list_display = ('store', 'product', 'sort_order')
+    list_filter = ('store',)
+    list_editable = ('sort_order',)
+    raw_id_fields = ('product',)
+
+
+@admin.register(Ticker)
+class TickerAdmin(admin.ModelAdmin):
+    list_display = ('short_text', 'is_active', 'sort_order')
+    list_editable = ('is_active', 'sort_order')
+    list_display_links = ('short_text',)
+
+    def short_text(self, obj):
+        return obj.text[:80] + ('…' if len(obj.text) > 80 else '')
+    short_text.short_description = 'Текст'

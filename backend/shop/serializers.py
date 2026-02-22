@@ -1,9 +1,10 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.utils.text import slugify
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from .models import Product, ProductImage, Discount, OrderItem, Order, Category, Review, HeroBanner, Store, StoreManager, FlowerTag
+from .models import Product, ProductImage, Discount, OrderItem, Order, Category, Review, HeroBanner, Store, StoreManager, FlowerTag, ShowcaseItem
 
 
 class FlowerTagSerializer(serializers.ModelSerializer):
@@ -77,8 +78,20 @@ class BotProductCreateSerializer(serializers.ModelSerializer):
 
         if not validated_data.get('title'):
             validated_data['title'] = 'Букет'
+
+        # Генерируем уникальный slug из названия
+        base_slug = slugify(validated_data['title'], allow_unicode=False) or 'buket'
+        slug = base_slug
+        counter = 1
+        while Product.objects.filter(slug=slug).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+        validated_data['slug'] = slug
+
         product = Product.objects.create(**validated_data)
         product.stores.set([store])
+        # Добавляем в витрину магазина через ShowcaseItem
+        ShowcaseItem.objects.get_or_create(store=store, product=product)
         return product
 
 class DiscountSerializer(serializers.ModelSerializer):

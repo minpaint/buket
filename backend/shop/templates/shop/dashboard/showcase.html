@@ -4,52 +4,122 @@
 
 {% block extra_styles %}
 <style>
-  .showcase-layout{display:grid;grid-template-columns:1fr 360px;gap:20px;align-items:start}
+  .store-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+  .store-tab{padding:6px 16px;border-radius:20px;border:1px solid var(--Border);font-size:13px;font-weight:500;color:var(--Muted);background:#fff;cursor:pointer;text-decoration:none;transition:background .15s,border-color .15s,color .15s}
+  .store-tab:hover{border-color:var(--PrimaryDark);color:var(--PrimaryDark)}
+  .store-tab.active{background:var(--PrimaryDark);border-color:var(--PrimaryDark);color:#fff}
+  .showcase-layout{display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start}
+  .showcase-layout > *{min-width:0}
   .showcase-item{
     display:flex;align-items:center;gap:12px;
     padding:10px 12px;border:1px solid var(--Border);border-radius:10px;
-    background:#fff;margin-bottom:8px;
+    background:#fff;margin-bottom:8px;min-width:0;
   }
-  .showcase-img{width:52px;height:52px;object-fit:cover;border-radius:8px;background:#f3f9f1;flex-shrink:0}
-  .showcase-info{flex:1;min-width:0}
-  .showcase-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .showcase-sort{width:60px;padding:4px 6px;border:1px solid var(--Border);border-radius:6px;font-size:13px;text-align:center}
+  .img-wrap{position:relative;flex-shrink:0;width:52px;height:52px}
+  .showcase-img{width:52px;height:52px;object-fit:cover;border-radius:8px;background:#f3f9f1;flex-shrink:0;display:block;cursor:zoom-in}
+  .img-preview{
+    display:none;position:absolute;z-index:100;
+    width:200px;height:200px;object-fit:cover;
+    border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.22);
+    border:2px solid #fff;
+    bottom:calc(100% + 8px);left:0;
+    pointer-events:none;
+  }
+  .img-wrap:hover .img-preview{display:block}
+  .showcase-info{flex:1;min-width:0;overflow:hidden}
+  .showcase-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;padding:2px 4px;border-radius:4px;transition:background .15s}
+  .showcase-name:hover{background:var(--SoftBg)}
+  .showcase-price{font-size:12px;color:var(--Muted);cursor:pointer;padding:2px 4px;border-radius:4px;display:inline-block;transition:background .15s}
+  .showcase-price:hover{background:var(--SoftBg)}
+  .showcase-edit-input{font-size:14px;font-weight:600;border:1px solid var(--PrimaryDark);border-radius:4px;padding:2px 6px;outline:none;width:100%;box-sizing:border-box}
+  .showcase-edit-input.price-input{width:90px;font-size:12px;font-weight:400}
+  .showcase-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .showcase-sort{width:56px;padding:4px 6px;border:1px solid var(--Border);border-radius:6px;font-size:13px;text-align:center}
   .product-pick{
     display:flex;align-items:center;gap:10px;padding:8px 10px;
     border:1px solid var(--Border);border-radius:8px;cursor:pointer;
     transition:background .15s,border-color .15s;margin-bottom:6px;
   }
   .product-pick:hover{background:var(--SoftBg);border-color:var(--PrimaryDark)}
-  .product-pick img{width:36px;height:36px;object-fit:cover;border-radius:6px;background:#f3f9f1}
-  .product-pick-name{font-size:13px;font-weight:600;flex:1}
-  .product-pick-price{font-size:13px;color:var(--PrimaryDark);font-weight:700}
+  .pick-img-wrap{flex-shrink:0;width:36px;height:36px;overflow:hidden;border-radius:6px}
+  .product-pick img{width:36px;height:36px;object-fit:cover;border-radius:6px;background:#f3f9f1;flex-shrink:0;display:block}
+  #pickFloatPreview{
+    display:none;position:fixed;z-index:9999;
+    width:160px;height:160px;object-fit:cover;
+    border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.22);
+    border:2px solid #fff;pointer-events:none;
+    transition:opacity .1s;
+  }
+  .product-pick-name{font-size:13px;font-weight:600;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .product-pick-price{font-size:13px;color:var(--PrimaryDark);font-weight:700;flex-shrink:0}
   #pickSearch{width:100%;padding:8px 12px;border:1px solid var(--Border);border-radius:8px;font-size:14px;outline:none;margin-bottom:10px}
   #pickSearch:focus{border-color:var(--PrimaryDark)}
-  @media(max-width:900px){.showcase-layout{grid-template-columns:1fr}}
+  .pick-panel{position:sticky;top:76px}
+  @media(max-width:1100px){
+    .showcase-layout{grid-template-columns:1fr 260px}
+  }
+  @media(max-width:900px){
+    .showcase-layout{grid-template-columns:1fr;gap:14px}
+    .pick-panel{position:static}
+  }
+  @media(max-width:560px){
+    .showcase-item{gap:8px;padding:8px 10px}
+    .showcase-img{width:40px;height:40px;border-radius:6px}
+    .img-wrap{width:40px;height:40px}
+    .showcase-sort{width:48px;font-size:12px}
+    .showcase-name{font-size:13px}
+    #pickList{max-height:280px}
+    .product-pick img{width:30px;height:30px}
+    .pick-img-wrap{width:30px;height:30px}
+    .product-pick-name{font-size:12px}
+    .product-pick-price{font-size:12px}
+    .img-preview{display:none!important}
+  }
+  @media(max-width:400px){
+    .showcase-img{width:34px;height:34px}
+    .img-wrap{width:34px;height:34px}
+    .showcase-sort{width:42px;padding:3px 4px;font-size:11px}
+  }
 </style>
 {% endblock %}
 
 {% block content %}
+{% if all_stores %}
+<div class="store-tabs">
+  {% for store in all_stores %}
+  <a href="?store={{ store.id }}" class="store-tab {% if selected_store and selected_store.id == store.id %}active{% endif %}">{{ store.name }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
 <div class="showcase-layout">
   <!-- Левая: список витрины -->
   <div>
     <div class="card" style="margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <span class="card-title" style="margin:0">В витрине ({{ showcase_products|length }})</span>
+        <div>
+          <span class="card-title" style="margin:0">В витрине ({{ showcase_products|length }})</span>
+          {% if selected_store %}<span style="font-size:12px;color:var(--Muted);margin-left:8px">{{ selected_store.name }}</span>{% endif %}
+        </div>
         <button class="btn btn-secondary btn-sm" onclick="saveOrder()">Сохранить порядок</button>
       </div>
       <div id="showcaseList">
         {% for p in showcase_products %}
         <div class="showcase-item" data-id="{{ p.id }}">
-          <img class="showcase-img" src="{{ p.image_url }}" alt="{{ p.title }}">
-          <div class="showcase-info">
-            <div class="showcase-name">{{ p.title }}</div>
-            <div style="font-size:12px;color:var(--Muted)">{{ p.price|floatformat:"-2" }} BYN</div>
+          <div class="img-wrap">
+            <img class="showcase-img" src="{{ p.image_url }}" alt="{{ p.title }}">
+            <img class="img-preview" src="{{ p.image_url }}" alt="">
           </div>
-          <input class="showcase-sort" type="number" min="0" value="{{ p.showcase_sort_order }}" title="Порядок">
-          <button class="btn btn-danger btn-sm btn-icon" onclick="removeFromShowcase({{ p.id }}, this)" title="Убрать из витрины">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
+          <div class="showcase-info">
+            <div class="showcase-name" onclick="editTitle({{ p.id }}, this)" title="Нажмите для редактирования">{{ p.title }}</div>
+            <span class="showcase-price" onclick="editPrice({{ p.id }}, this)" title="Нажмите для редактирования">{{ p.price|floatformat:"-2" }} BYN</span>
+          </div>
+          <div class="showcase-actions">
+            <input class="showcase-sort" type="number" min="0" value="{{ p.showcase_sort_order }}" title="Порядок">
+            <button class="btn btn-danger btn-sm btn-icon" onclick="removeFromShowcase({{ p.id }}, this)" title="Убрать из витрины">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
         </div>
         {% empty %}
         <div style="text-align:center;color:var(--Muted);padding:24px">Витрина пуста</div>
@@ -60,7 +130,7 @@
 
   <!-- Правая: поиск товаров для добавления -->
   <div>
-    <div class="card" style="position:sticky;top:76px">
+    <div class="card pick-panel">
       <div class="card-title">Добавить в витрину</div>
       <input type="text" id="pickSearch" placeholder="Поиск товара…" oninput="filterPick()">
       <div id="pickList" style="max-height:420px;overflow-y:auto">
@@ -68,7 +138,9 @@
         <div class="product-pick {% if p.is_online_showcase %}" style="opacity:.4;pointer-events:none{% endif %}"
           data-id="{{ p.id }}" data-name="{{ p.title|lower }}"
           onclick="addToShowcase({{ p.id }}, this)">
-          <img src="{{ p.image_url }}" alt="{{ p.title }}">
+          <div class="pick-img-wrap">
+            <img src="{{ p.image_url }}" alt="{{ p.title }}">
+          </div>
           <span class="product-pick-name">{{ p.title }}</span>
           <span class="product-pick-price">{{ p.price|floatformat:"-2" }}</span>
           {% if p.is_online_showcase %}<span class="badge badge-green">✓</span>{% endif %}
@@ -78,10 +150,62 @@
     </div>
   </div>
 </div>
+<img id="pickFloatPreview" src="" alt="">
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
+  var SELECTED_STORE_ID = {% if selected_store %}{{ selected_store.id }}{% else %}0{% endif %};
+
+  // Умное позиционирование превью левой панели: сверху или снизу
+  document.addEventListener('mouseover', function(e) {
+    var wrap = e.target.closest('.img-wrap');
+    if (!wrap) return;
+    var preview = wrap.querySelector('.img-preview');
+    if (!preview) return;
+    var rect = wrap.getBoundingClientRect();
+    var previewH = parseInt(preview.style.height || getComputedStyle(preview).height) || 200;
+    if (rect.top < previewH + 16) {
+      preview.style.bottom = 'auto';
+      preview.style.top = 'calc(100% + 8px)';
+    } else {
+      preview.style.top = 'auto';
+      preview.style.bottom = 'calc(100% + 8px)';
+    }
+  });
+
+  // Плавающее превью правой панели (рендерится в body, не внутри скролл-контейнера)
+  var floatPreview = document.getElementById('pickFloatPreview');
+  var floatOffset = {x: 16, y: -80};
+
+  document.addEventListener('mouseover', function(e) {
+    var pick = e.target.closest('.product-pick');
+    if (!pick || pick.style.pointerEvents === 'none') return;
+    var img = pick.querySelector('.pick-img-wrap img');
+    if (!img) return;
+    floatPreview.src = img.src;
+    floatPreview.style.display = 'block';
+  });
+
+  document.addEventListener('mouseout', function(e) {
+    if (!e.target.closest('.product-pick')) return;
+    var to = e.relatedTarget;
+    if (to && to.closest && to.closest('.product-pick') === e.target.closest('.product-pick')) return;
+    floatPreview.style.display = 'none';
+  });
+
+  document.addEventListener('mousemove', function(e) {
+    if (floatPreview.style.display === 'none') return;
+    var x = e.clientX + floatOffset.x;
+    var y = e.clientY + floatOffset.y;
+    // не выходить за правый край
+    if (x + 160 > window.innerWidth - 8) x = e.clientX - 160 - floatOffset.x;
+    // не выходить за верхний край
+    if (y < 8) y = e.clientY + 16;
+    floatPreview.style.left = x + 'px';
+    floatPreview.style.top  = y + 'px';
+  });
+
   function filterPick() {
     var q = document.getElementById('pickSearch').value.toLowerCase();
     document.querySelectorAll('#pickList .product-pick').forEach(function(el) {
@@ -93,7 +217,7 @@
     fetch('/dashboard/api/product/' + id + '/showcase/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
-      body: JSON.stringify({value: true})
+      body: JSON.stringify({value: true, store_id: SELECTED_STORE_ID})
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -106,7 +230,7 @@
     fetch('/dashboard/api/product/' + id + '/showcase/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
-      body: JSON.stringify({value: false})
+      body: JSON.stringify({value: false, store_id: SELECTED_STORE_ID})
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -127,12 +251,109 @@
     fetch('/dashboard/api/showcase/order/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
-      body: JSON.stringify({items: items})
+      body: JSON.stringify({items: items, store_id: SELECTED_STORE_ID})
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
       if (data.ok) showAlert('Порядок сохранён', 'success');
       else showAlert(data.error || 'Ошибка', 'error');
+    });
+  }
+
+  function editTitle(id, el) {
+    if (el.querySelector('input')) return;
+    var current = el.textContent.trim();
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.value = current;
+    input.className = 'showcase-edit-input';
+    el.textContent = '';
+    el.appendChild(input);
+    input.focus();
+    input.select();
+
+    function save() {
+      var newVal = input.value.trim();
+      if (!newVal || newVal === current) {
+        el.textContent = current;
+        return;
+      }
+      fetch('/dashboard/api/product/' + id + '/title/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+        body: JSON.stringify({title: newVal})
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          el.textContent = newVal;
+          showAlert('Название сохранено', 'success');
+        } else {
+          el.textContent = current;
+          showAlert(data.error || 'Ошибка', 'error');
+        }
+      })
+      .catch(function() {
+        el.textContent = current;
+      });
+    }
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { input.blur(); }
+      if (e.key === 'Escape') { el.textContent = current; }
+    });
+  }
+
+  function editPrice(id, el) {
+    if (el.querySelector('input')) return;
+    var current = el.textContent.replace(' BYN', '').trim();
+    var input = document.createElement('input');
+    input.type = 'text';
+    input.value = current;
+    input.className = 'showcase-edit-input price-input';
+    el.textContent = '';
+    el.appendChild(input);
+    input.focus();
+    input.select();
+
+    function save() {
+      var raw = input.value.trim().replace(',', '.');
+      var num = parseFloat(raw);
+      if (isNaN(num) || num < 0) {
+        el.textContent = current + ' BYN';
+        showAlert('Некорректная цена', 'error');
+        return;
+      }
+      var formatted = num.toFixed(2);
+      if (formatted === parseFloat(current).toFixed(2)) {
+        el.textContent = current + ' BYN';
+        return;
+      }
+      fetch('/dashboard/api/product/' + id + '/price/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+        body: JSON.stringify({price: formatted})
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.ok) {
+          el.textContent = formatted + ' BYN';
+          showAlert('Цена сохранена', 'success');
+        } else {
+          el.textContent = current + ' BYN';
+          showAlert(data.error || 'Ошибка', 'error');
+        }
+      })
+      .catch(function() {
+        el.textContent = current + ' BYN';
+      });
+    }
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') { input.blur(); }
+      if (e.key === 'Escape') { el.textContent = current + ' BYN'; }
     });
   }
 </script>

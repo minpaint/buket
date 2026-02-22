@@ -6,11 +6,11 @@ from decimal import Decimal, InvalidOperation
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import BotCommand, CallbackQuery, Message
 
 from .api_client import ApiClient
 from .config import get_settings
-from .keyboards import confirm_keyboard, stores_keyboard
+from .keyboards import confirm_keyboard, main_keyboard, stores_keyboard
 from .states import ProductForm
 
 router = Router()
@@ -34,7 +34,20 @@ async def start_handler(message: Message):
     if not manager:
         await message.answer("Нет доступа. Обратитесь к администратору.")
         return
-    await message.answer("Доступ подтвержден. Нажмите /add для добавления букета.")
+    await message.answer(
+        "Доступ подтверждён. Нажмите кнопку ниже, чтобы добавить букет.",
+        reply_markup=main_keyboard(),
+    )
+
+
+@router.message(F.text == "🏠 Старт")
+async def btn_start_handler(message: Message):
+    await start_handler(message)
+
+
+@router.message(F.text == "➕ Добавить букет")
+async def btn_add_handler(message: Message, state: FSMContext):
+    await add_handler(message, state)
 
 
 @router.message(Command("add"))
@@ -135,7 +148,8 @@ async def publish_handler(callback: CallbackQuery, state: FSMContext, bot: Bot):
     if ok:
         await callback.message.answer("Опубликовано в онлайн витрине.")
     else:
-        await callback.message.answer(f"Ошибка публикации: {error}")
+        short_error = error[:200] if error else "неизвестная ошибка"
+        await callback.message.answer(f"Ошибка публикации: {short_error}")
     await callback.answer()
 
 
@@ -149,6 +163,11 @@ async def main():
     if not settings.bot_token or not settings.bot_secret:
         raise RuntimeError("BOT_TOKEN и BOT_SECRET обязательны.")
     bot = Bot(token=settings.bot_token)
+    await bot.set_my_commands([
+        BotCommand(command="start", description="Запустить бота"),
+        BotCommand(command="add", description="Добавить букет в витрину"),
+        BotCommand(command="cancel", description="Отменить действие"),
+    ])
     dp = Dispatcher()
     dp.include_router(router)
     await dp.start_polling(bot)

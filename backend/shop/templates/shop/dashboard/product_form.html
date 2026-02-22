@@ -20,6 +20,13 @@
   }
   .store-chip input{accent-color:var(--PrimaryDark)}
   .store-chip.selected{background:var(--SoftBg);border-color:var(--PrimaryDark);color:var(--PrimaryDark);font-weight:600}
+  .form-actions{display:flex;gap:10px;flex-wrap:wrap}
+  .form-actions .btn-danger{margin-left:auto}
+  @media(max-width:480px){
+    .form-actions{flex-direction:column}
+    .form-actions .btn-danger{margin-left:0}
+    .form-actions .btn{width:100%;justify-content:center}
+  }
 </style>
 {% endblock %}
 
@@ -77,11 +84,6 @@
     <div class="card" style="margin-bottom:16px">
       <div class="card-title">Изображение</div>
       <div class="form-row">
-        <label>URL изображения</label>
-        <input type="url" name="image" value="{{ product.image|default:'' }}" placeholder="https://…"
-          oninput="previewUrl(this.value)">
-      </div>
-      <div class="form-row">
         <label>Загрузить файл</label>
         <input type="file" name="uploaded_image" accept="image/*" onchange="previewFile(this)">
       </div>
@@ -120,13 +122,13 @@
     </div>
     {% endif %}
 
-    <div style="display:flex;gap:10px">
+    <div class="form-actions">
       <button type="submit" class="btn btn-primary">
         {% if product %}Сохранить изменения{% else %}Добавить товар{% endif %}
       </button>
       <a href="/dashboard/products/" class="btn btn-secondary">Отмена</a>
       {% if product %}
-      <button type="button" class="btn btn-danger" style="margin-left:auto" onclick="deleteProduct({{ product.id }})">Удалить товар</button>
+      <button type="button" class="btn btn-danger" onclick="deleteProduct({{ product.id }})">Удалить товар</button>
       {% endif %}
     </div>
   </form>
@@ -135,12 +137,6 @@
 
 {% block extra_scripts %}
 <script>
-  function previewUrl(url) {
-    var img = document.getElementById('imgPreview');
-    if (!img) return;
-    if (url) img.src = url;
-  }
-
   function previewFile(input) {
     var img = document.getElementById('imgPreview');
     if (!img || !input.files[0]) return;

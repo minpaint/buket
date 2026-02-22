@@ -73,7 +73,7 @@
     .btn-logout:hover{background:#e5e7eb}
 
     /* Page content */
-    .dash-content{flex:1;padding:24px}
+    .dash-content{flex:1;padding:24px;min-width:0;overflow-x:hidden}
 
     /* Common UI */
     .card{background:#fff;border:1px solid var(--Border);border-radius:12px;padding:20px}
@@ -128,6 +128,9 @@
     .burger-dash{display:none;border:none;background:none;font-size:24px;cursor:pointer;color:var(--PrimaryDark);padding:4px}
     .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:29}
 
+    @media(max-width:1100px){
+      .dash-content{padding:16px}
+    }
     @media(max-width:900px){
       .sidebar{transform:translateX(-101%);transition:transform .24s ease}
       .sidebar.open{transform:translateX(0)}
@@ -137,6 +140,14 @@
       .dash-content{padding:14px}
       .burger-dash{display:block}
       .form-grid{grid-template-columns:1fr}
+      .topbar-user{gap:8px}
+    }
+    @media(max-width:560px){
+      .topbar-title{font-size:15px}
+      .topbar-user{font-size:12px}
+      .btn-logout{padding:5px 10px;font-size:12px}
+      .dash-content{padding:10px}
+      .card{padding:14px}
     }
   </style>
   {% block extra_styles %}{% endblock %}
@@ -148,7 +159,6 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-logo">
       <a href="/"><img src="/static/logo.png" alt="Buket"></a>
-      <span>Дашборд</span>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-section">Контент</div>
@@ -156,17 +166,25 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 00-4 0v2"/><path d="M8 7V5a2 2 0 00-4 0v2"/></svg>
         Товары
       </a>
+      {% if request.user.is_superuser or request.user.is_staff %}
       <a class="nav-link {% if active == 'hero' %}active{% endif %}" href="/dashboard/hero/">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
         Баннеры
       </a>
+      {% endif %}
       <a class="nav-link {% if active == 'showcase' %}active{% endif %}" href="/dashboard/showcase/">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
         Витрина
       </a>
+      {% if request.user.is_superuser or request.user.is_staff %}
       <a class="nav-link {% if active == 'categories' %}active{% endif %}" href="/dashboard/categories/">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
         Категории
+      </a>
+      {% endif %}
+      <a class="nav-link {% if active == 'reviews' %}active{% endif %}" href="/dashboard/reviews/">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        Отзывы
       </a>
       <div class="nav-section" style="margin-top:8px">Аккаунт</div>
       <a class="nav-link {% if active == 'profile' %}active{% endif %}" href="/dashboard/profile/">
@@ -187,7 +205,19 @@
         <span class="topbar-title">{% block topbar_title %}Дашборд{% endblock %}</span>
       </div>
       <div class="topbar-user">
-        <span>{{ request.user.username }}</span>
+        <div style="text-align:right;line-height:1.3">
+          <div style="font-weight:600;font-size:14px">
+            {% if request.user.get_full_name %}{{ request.user.get_full_name }}{% else %}{{ request.user.username }}{% endif %}
+            {% if request.user.is_superuser %}<span style="font-size:11px;background:#dcfce7;color:#166534;padding:1px 6px;border-radius:4px;margin-left:4px">Админ</span>{% endif %}
+          </div>
+          {% with sm=request.user.store_manager %}
+          {% if sm and not request.user.is_superuser and not request.user.is_staff %}
+          <div style="font-size:12px;color:#9ca3af">
+            {% for s in sm.stores.all %}{{ s.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+          </div>
+          {% endif %}
+          {% endwith %}
+        </div>
         <form method="post" action="/dashboard/logout/" style="display:inline">
           {% csrf_token %}
           <button type="submit" class="btn-logout">Выйти</button>

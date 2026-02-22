@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import logging
 from io import BytesIO
 from typing import Any
 
 import aiohttp
 from aiogram import Bot
+
+log = logging.getLogger(__name__)
 
 
 class ApiClient:
@@ -57,4 +60,5 @@ class ApiClient:
                 if response.status in (200, 201):
                     return True, "ok"
                 text = await response.text()
+                log.error("Django API error %s: %s", response.status, text[:500])
                 return False, text

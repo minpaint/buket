@@ -76,6 +76,14 @@ class StorePhoto(models.Model):
 
 
 class StoreManager(models.Model):
+    user = models.OneToOneField(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='store_manager',
+        verbose_name='Пользователь (дашборд)',
+    )
     telegram_id = models.BigIntegerField(unique=True, db_index=True, verbose_name='Telegram ID')
     telegram_username = models.CharField(max_length=100, blank=True, default='', verbose_name='Username')
     full_name = models.CharField(max_length=200, verbose_name='Имя')
@@ -265,6 +273,14 @@ class Review(models.Model):
     rating = models.PositiveSmallIntegerField(default=5, verbose_name='Оценка')
     image = models.URLField(max_length=300, blank=True, default='', verbose_name='Логотип/изображение (URL)')
     source_url = models.URLField(max_length=300, blank=True, default='', verbose_name='Источник')
+    store = models.ForeignKey(
+        'Store',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviews',
+        verbose_name='Магазин',
+    )
     is_published = models.BooleanField(default=True, verbose_name='Опубликован')
     sort_order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создан')
@@ -342,3 +358,44 @@ class SitePage(models.Model):
 
     def __str__(self):
         return self.title
+
+
+class Ticker(models.Model):
+    """Бегущая строка на сайте."""
+    text = models.TextField(verbose_name='Текст строки')
+    is_active = models.BooleanField(default=True, verbose_name='Активна')
+    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='Порядок')
+
+    class Meta:
+        ordering = ('sort_order',)
+        verbose_name = 'Бегущая строка'
+        verbose_name_plural = 'Бегущая строка'
+
+    def __str__(self):
+        return self.text[:60]
+
+
+class ShowcaseItem(models.Model):
+    """Товар в витрине конкретного магазина (независимо от is_online_showcase)."""
+    store = models.ForeignKey(
+        Store,
+        on_delete=models.CASCADE,
+        related_name='showcase_items',
+        verbose_name='Магазин',
+    )
+    product = models.ForeignKey(
+        Product,
+        on_delete=models.CASCADE,
+        related_name='showcase_items',
+        verbose_name='Товар',
+    )
+    sort_order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
+
+    class Meta:
+        unique_together = ('store', 'product')
+        ordering = ('sort_order', '-id')
+        verbose_name = 'Товар в витрине'
+        verbose_name_plural = 'Товары в витринах'
+
+    def __str__(self):
+        return f'{self.store.name} — {self.product.title}'

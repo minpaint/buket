@@ -21,7 +21,10 @@
   .title{font-size:38px;color:var(--PrimaryDark);margin:0}
   .subtitle{color:#000;margin:10px 0 0;font-size:16px}
   .grid{display:grid;gap:16px}
-  .grid-4{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+  .grid-4{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+  .showcase-grid{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:900px){.showcase-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:360px){.showcase-grid{grid-template-columns:1fr 1fr}}
   .grid-3{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
   .product-card,.category-card,.review-card{background:#fff;border:1px solid rgba(34,139,34,.14);border-radius:14px;overflow:hidden;box-shadow:0 10px 24px rgba(16,24,40,.08);transition:all .3s;display:flex;flex-direction:column}
   .product-card:hover,.category-card:hover,.review-card:hover{box-shadow:0 16px 30px rgba(16,24,40,.16)}
@@ -65,20 +68,88 @@
   @media(max-width:560px){.order-btn{font-size:11px;padding:5px 10px}}
   .action-center{text-align:center;margin-top:20px}
   .btn-main{display:inline-block;background:var(--Primary);color:#fff;border-radius:999px;padding:12px 24px}
+  /* Per-store showcase */
+  .store-showcase{margin-bottom:28px}
+  .store-showcase:last-child{margin-bottom:0}
+  /* Плашка магазина */
+  .store-showcase-header{
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    margin-bottom:14px;flex-wrap:wrap;
+    background:#f0faf2;border:1px solid #c6e8cc;
+    border-radius:12px;padding:12px 16px;
+  }
+  .store-showcase-meta{flex:1;min-width:0;display:flex;align-items:center;gap:10px}
+  .store-showcase-icon{
+    width:36px;height:36px;border-radius:50%;
+    background:#d1f0d8;
+    display:flex;align-items:center;justify-content:center;
+    font-size:17px;flex-shrink:0;
+  }
+  .store-showcase-texts{min-width:0}
+  .store-showcase-name{font-size:15px;font-weight:700;color:var(--PrimaryDark);margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .store-showcase-addr{font-size:12px;color:#6b7280;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .btn-see-all{
+    display:inline-flex;align-items:center;gap:5px;
+    background:#fff;border:1px solid #c6e8cc;
+    color:var(--PrimaryDark);border-radius:999px;padding:7px 16px;
+    font-size:13px;font-weight:600;white-space:nowrap;flex-shrink:0;
+    transition:background .15s;
+  }
+  .btn-see-all:hover{background:#e8f5e9}
+  .showcase-divider{border:none;border-top:1px solid rgba(34,139,34,.12);margin:24px 0 0}
+  @media(max-width:560px){
+    .store-showcase-name{font-size:14px}
+    .store-showcase-header{padding:10px 12px;gap:8px}
+    .btn-see-all{font-size:12px;padding:6px 12px}
+    .store-showcase-icon{width:32px;height:32px;font-size:15px}
+  }
   .reviews-wrap{margin-top:20px;border:1px solid rgba(34,139,34,.15);border-radius:16px;background:#fff;padding:20px}
   .review-top{display:flex;align-items:center;gap:10px}
   .avatar{width:40px;height:40px;border-radius:50%;background:#d1fae5;object-fit:cover}
   .stars{color:#f59e0b;letter-spacing:1px;font-size:14px}
   .stores{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
   .store-chip{background:#f3f4f6;border-radius:999px;padding:6px 10px;font-size:13px}
+  /* Слайдер отзывов */
+  .reviews-slider-wrap{position:relative;margin-top:16px}
+  .reviews-track-outer{overflow:hidden}
+  .reviews-track{display:flex;gap:16px;transition:transform .35s ease}
+  .reviews-track .review-card{flex:0 0 calc(33.333% - 11px);min-width:0}
+  .reviews-nav{display:flex;gap:8px;justify-content:flex-end;align-items:center;margin-top:14px}
+  .reviews-arrow{
+    width:36px;height:36px;border-radius:50%;border:1px solid #d1e8d4;
+    background:#fff;cursor:pointer;font-size:16px;line-height:1;
+    display:inline-flex;align-items:center;justify-content:center;
+    color:var(--PrimaryDark);transition:background .15s,border-color .15s;flex-shrink:0;
+  }
+  .reviews-arrow:hover{background:var(--SoftBg);border-color:var(--PrimaryDark)}
+  .reviews-dots{display:flex;gap:6px;align-items:center}
+  .reviews-dot{width:8px;height:8px;border-radius:50%;background:#d1e8d4;border:none;cursor:pointer;padding:0;transition:background .2s,width .2s}
+  .reviews-dot.active{background:var(--PrimaryDark);width:22px;border-radius:999px}
+  @media(max-width:900px){.reviews-track .review-card{flex:0 0 calc(50% - 8px)}}
+  @media(max-width:560px){.reviews-track .review-card{flex:0 0 100%}}
   @media (max-width:900px){
     .container{padding:0 12px}
     .section{padding:22px 0}
     .showcase-wrap,.reviews-wrap{padding:14px}
     .hero-card h1{font-size:32px}
     .title{font-size:30px}
+    .grid-4{grid-template-columns:1fr 1fr}
+    .store-showcase-header{gap:8px}
+    /* планшет — 2 колонки */
   }
   .price-undef{font-size:13px;color:#6b7280;font-style:italic}
+  /* Скрыть карточки витрины после 4-й на десктопе тоже */
+  .showcase-grid:not(.expanded) .showcase-card:nth-child(n+5){display:none}
+  /* Кнопка «Смотреть всю витрину» */
+  .btn-expand-showcase{
+    display:block;
+    margin:12px auto 0;
+    background:var(--SoftBg);border:1px solid #d1e8d4;
+    color:var(--PrimaryDark);border-radius:999px;
+    padding:8px 20px;font-size:13px;font-weight:600;
+    cursor:pointer;transition:background .15s;
+  }
+  .btn-expand-showcase:hover{background:#e8f5e9}
   @media (max-width:560px){
     .hero{min-height:42vh}
     .hero-inner{min-height:42vh;padding:20px 12px}
@@ -89,8 +160,16 @@
     .hero-nav{width:34px;height:34px}
     .grid-4{grid-template-columns:1fr 1fr}
     .grid-3{grid-template-columns:1fr}
-    .name{font-size:16px}
+    .name{font-size:14px}
     .title{font-size:24px}
+    .showcase-wrap,.reviews-wrap{padding:12px}
+    .btn-see-all{width:100%}
+    .store-showcase-header{flex-direction:column;align-items:flex-start}
+    .store-showcase-name{font-size:16px}
+    /* мобиле — 2 колонки */
+  }
+  @media (max-width:360px){
+    .grid-4{grid-template-columns:1fr}
   }
 </style>
 {% endblock %}
@@ -133,8 +212,55 @@
   <section class="section">
     <div class="showcase-wrap">
       <h2 class="title">Сегодня в наличии</h2>
-      <p class="subtitle desc-text">ONLINE витрина, собранная сегодня прямо из холодильника.</p>
-      <div class="grid grid-4" style="margin-top:16px">
+      <p class="subtitle desc-text">ONLINE витрина — товары из наших магазинов, собранные сегодня прямо из холодильника.</p>
+
+      {% if store_showcases %}
+        {% for ss in store_showcases %}
+        <div class="store-showcase">
+          <div class="store-showcase-header">
+            <div class="store-showcase-meta">
+              <div class="store-showcase-icon">🌸</div>
+              <div class="store-showcase-texts">
+                <p class="store-showcase-name">{{ ss.store.name }}</p>
+                {% if ss.store.address %}<p class="store-showcase-addr">📍 {{ ss.store.address }}</p>{% endif %}
+              </div>
+            </div>
+            <a class="btn-see-all" href="/store/?store={{ ss.store.id }}">Смотреть все →</a>
+          </div>
+          <div class="grid grid-4 showcase-grid" id="showcase-grid-{{ forloop.counter }}">
+            {% for p in ss.cards %}
+              <a class="product-card card showcase-card" href="{{ p.href }}">
+                <div class="media">
+                  <img class="main" src="{{ p.image }}" alt="{{ p.title }}">
+                  <img class="hover" src="{{ p.hover_image }}" alt="{{ p.title }}">
+                  <span class="badge-instock">В наличии</span>
+                </div>
+                <div class="pad">
+                  <p class="name">{{ p.title }}</p>
+                  <div class="price-row">
+                    {% if p.price %}
+                      <p class="price-tag" style="margin:0">
+                        <span class="price-amount">{{ p.price|floatformat:"-2" }}</span>
+                        <span class="price-currency">BYN</span>
+                      </p>
+                    {% else %}
+                      <span class="price-undef">Цену уточняйте</span>
+                    {% endif %}
+                    <span class="order-btn">Купить</span>
+                  </div>
+                </div>
+              </a>
+            {% endfor %}
+          </div>
+          {% if ss.cards|length > 4 %}
+          <button class="btn-expand-showcase" onclick="expandShowcase(this,'showcase-grid-{{ forloop.counter }}')">
+            Смотреть всю витрину →
+          </button>
+          {% endif %}
+          {% if not forloop.last %}<hr class="showcase-divider">{% endif %}
+        </div>
+        {% endfor %}
+      {% else %}
         {% for p in showcase_cards %}
           <a class="product-card card" href="{{ p.href }}">
             <div class="media">
@@ -158,9 +284,9 @@
             </div>
           </a>
         {% empty %}
-          <p class="muted">Пока нет товаров в ONLINE витрине.</p>
+          <p class="muted" style="margin-top:16px">Пока нет товаров в ONLINE витрине.</p>
         {% endfor %}
-      </div>
+      {% endif %}
     </div>
   </section>
 
@@ -191,31 +317,48 @@
     <div class="reviews-wrap">
       <h2 class="title" style="font-size:34px">Отзывы клиентов</h2>
       <p class="subtitle desc-text">Раздел заполняется из админки Django.</p>
-      <div class="grid grid-3" style="margin-top:16px">
-        {% for r in reviews %}
-          <article class="review-card">
-            <div class="pad">
-              <div class="review-top">
-                {% if r.image %}
-                  <img class="avatar" src="{{ r.image }}" alt="{{ r.author }}">
-                {% else %}
-                  <div class="avatar"></div>
-                {% endif %}
-                <div>
-                  <div style="font-weight:700;color:var(--PrimaryDark)">{{ r.company|default:r.author }}</div>
-                  <div class="muted" style="font-size:12px">{{ r.author }}</div>
+
+      {% if reviews %}
+      <div class="reviews-slider-wrap" id="reviewsSlider">
+        <div class="reviews-track-outer">
+          <div class="reviews-track" id="reviewsTrack">
+            {% for r in reviews %}
+            <article class="review-card">
+              <div class="pad">
+                <div class="review-top">
+                  {% if r.image %}
+                    <img class="avatar" src="{{ r.image }}" alt="{{ r.author }}">
+                  {% else %}
+                    <div class="avatar"></div>
+                  {% endif %}
+                  <div>
+                    <div style="font-weight:700;color:var(--PrimaryDark)">{{ r.company|default:r.author }}</div>
+                    <div class="muted" style="font-size:12px">{{ r.author }}</div>
+                  </div>
+                </div>
+                <p class="desc-text" style="margin:10px 0 8px;line-height:1.45">{{ r.text|truncatechars:180 }}</p>
+                <div class="stars">
+                  {% if r.rating == 5 %}★★★★★{% elif r.rating == 4 %}★★★★☆{% elif r.rating == 3 %}★★★☆☆{% elif r.rating == 2 %}★★☆☆☆{% else %}★☆☆☆☆{% endif %}
                 </div>
               </div>
-              <p class="desc-text" style="margin:10px 0 8px;line-height:1.45">{{ r.text|truncatechars:180 }}</p>
-              <div class="stars">
-                {% if r.rating == 5 %}★★★★★{% elif r.rating == 4 %}★★★★☆{% elif r.rating == 3 %}★★★☆☆{% elif r.rating == 2 %}★★☆☆☆{% else %}★☆☆☆☆{% endif %}
-              </div>
-            </div>
-          </article>
-        {% empty %}
-          <p class="muted">Отзывов пока нет.</p>
-        {% endfor %}
+            </article>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="reviews-nav">
+          <div class="reviews-dots" id="reviewsDots"></div>
+          <button class="reviews-arrow" id="revPrev" aria-label="Назад">&#8592;</button>
+          <button class="reviews-arrow" id="revNext" aria-label="Вперёд">&#8594;</button>
+        </div>
       </div>
+      {% else %}
+        <p class="muted" style="margin-top:16px">Отзывов пока нет.</p>
+      {% endif %}
+
+      <div style="margin-top:18px">
+        <a href="/reviews/" class="btn-main" style="display:inline-block;background:var(--PrimaryDark);color:#fff;border-radius:999px;padding:10px 24px;font-size:14px;font-weight:600;text-decoration:none">Оставить отзыв</a>
+      </div>
+
       <div class="stores">
         {% for store in stores %}
           <span class="store-chip">{{ store.name }}{% if store.subdomain %} · {{ store.subdomain }}{% endif %}</span>
@@ -226,6 +369,13 @@
 </main>
 {% endblock %}
 {% block extra_scripts %}
+<script>
+function expandShowcase(btn, gridId) {
+  var grid = document.getElementById(gridId);
+  if (grid) { grid.classList.add('expanded'); }
+  btn.style.display = 'none';
+}
+</script>
 {% if active_banners|length > 1 %}
 <script>
   (function(){
@@ -267,6 +417,67 @@
     dots.forEach((d, n) => d.addEventListener("click", () => paint(n)));
     setInterval(nextSlide, 5000);
   })();
+</script>
+{% endif %}
+{% if reviews %}
+<script>
+(function(){
+  var track = document.getElementById('reviewsTrack');
+  var dotsWrap = document.getElementById('reviewsDots');
+  var btnPrev = document.getElementById('revPrev');
+  var btnNext = document.getElementById('revNext');
+  if (!track) return;
+
+  var cards = Array.from(track.children);
+  var total = cards.length;
+  var idx = 0;
+
+  function perPage() {
+    var w = window.innerWidth;
+    if (w <= 560) return 1;
+    if (w <= 900) return 2;
+    return 3;
+  }
+
+  function pageCount() { return Math.ceil(total / perPage()); }
+
+  function buildDots() {
+    dotsWrap.innerHTML = '';
+    var pc = pageCount();
+    for (var i = 0; i < pc; i++) {
+      var d = document.createElement('button');
+      d.className = 'reviews-dot' + (i === 0 ? ' active' : '');
+      d.setAttribute('aria-label', 'Страница ' + (i + 1));
+      (function(n){ d.addEventListener('click', function(){ go(n); }); })(i);
+      dotsWrap.appendChild(d);
+    }
+  }
+
+  function go(page) {
+    var pc = pageCount();
+    idx = Math.max(0, Math.min(page, pc - 1));
+    var pp = perPage();
+    var cardW = cards[0].getBoundingClientRect().width;
+    var gap = 16;
+    track.style.transform = 'translateX(-' + (idx * pp * (cardW + gap)) + 'px)';
+    Array.from(dotsWrap.children).forEach(function(d, n) {
+      d.classList.toggle('active', n === idx);
+    });
+  }
+
+  buildDots();
+  btnPrev.addEventListener('click', function(){ go(idx - 1); });
+  btnNext.addEventListener('click', function(){ go(idx + 1); });
+
+  var resizeTimer;
+  window.addEventListener('resize', function(){
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(function(){
+      buildDots();
+      go(0);
+    }, 150);
+  });
+})();
 </script>
 {% endif %}
 {% endblock %}

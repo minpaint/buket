@@ -71,7 +71,13 @@
     <div class="form-row"><label>Обзор</label><textarea id="bOverview" rows="3" placeholder="Короткое описание кампании"></textarea></div>
     <div class="form-grid">
       <div class="form-row"><label>Текст кнопки</label><input type="text" id="bButtonText" placeholder="Перейти"></div>
-      <div class="form-row"><label>URL кнопки</label><input type="url" id="bButtonUrl" placeholder="/store/"></div>
+      <div class="form-row">
+        <label>URL кнопки</label>
+        <select id="bCategoryPick" onchange="onCategoryPick()" style="margin-bottom:6px">
+          <option value="">— или выбрать категорию —</option>
+        </select>
+        <input type="text" id="bButtonUrl" placeholder="/store/">
+      </div>
     </div>
     <div class="form-row"><label>Изображение (desktop)</label><input type="file" id="bDesktopImage" accept="image/*"></div>
     <div class="form-row"><small id="bDesktopCurrent" style="color:var(--Muted)"></small></div>
@@ -101,6 +107,45 @@
 {% block extra_scripts %}
 <script>
   var bannersData = {{ banners_json|safe }};
+  var categoriesData = {{ categories_json|safe }};
+
+  // Заполняем select категорий: сначала корневые, потом дочерние с отступом
+  (function buildCategorySelect() {
+    var sel = document.getElementById('bCategoryPick');
+    var roots = categoriesData.filter(function(c) { return !c.parent_id; });
+    var children = categoriesData.filter(function(c) { return !!c.parent_id; });
+    roots.forEach(function(root) {
+      var opt = document.createElement('option');
+      opt.value = root.slug ? '/store/category/' + root.slug + '/' : '';
+      opt.textContent = root.name;
+      sel.appendChild(opt);
+      children.filter(function(c) { return c.parent_id === root.id; }).forEach(function(child) {
+        var copt = document.createElement('option');
+        copt.value = child.slug ? '/store/category/' + child.slug + '/' : '';
+        copt.textContent = '\u00a0\u00a0\u00a0\u00a0' + child.name;
+        sel.appendChild(copt);
+      });
+    });
+  })();
+
+  function onCategoryPick() {
+    var val = document.getElementById('bCategoryPick').value;
+    if (val) document.getElementById('bButtonUrl').value = val;
+  }
+
+  // При открытии модалки — подсветить совпадающую категорию в select
+  function syncCategorySelect(url) {
+    var sel = document.getElementById('bCategoryPick');
+    var found = false;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value && sel.options[i].value === url) {
+        sel.selectedIndex = i;
+        found = true;
+        break;
+      }
+    }
+    if (!found) sel.selectedIndex = 0;
+  }
 
   function openModal(data) {
     document.getElementById('modalTitle').textContent = data ? 'Редактировать баннер' : 'Новый баннер';
@@ -111,6 +156,7 @@
     document.getElementById('bOverview').value = data ? (data.overview || '') : '';
     document.getElementById('bButtonText').value = data ? (data.button_text || '') : '';
     document.getElementById('bButtonUrl').value = data ? (data.button_url || '') : '';
+    syncCategorySelect(data ? (data.button_url || '') : '');
     document.getElementById('bDesktopImage').value = '';
     document.getElementById('bMobileImage').value = '';
     document.getElementById('bDesktopCurrent').textContent = data && data.desktop_image ? ('Текущее: ' + data.desktop_image) : '';

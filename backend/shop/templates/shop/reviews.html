@@ -1,30 +1,139 @@
 {% extends "shop/base.html" %}
-{% block title %}Отзывы - Buket{% endblock %}
+{% block title %}Отзывы — Buket{% endblock %}
 {% block extra_styles %}
 <style>
-  .wrap{max-width:1200px;margin:0 auto;padding:20px}
-  h1{margin:0;color:#166534}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-top:16px}
-  .card{border:1px solid #e5e7eb;border-radius:12px;padding:12px}
-  .stars{color:#f59e0b}
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px}
+  .page-title{font-size:34px;font-weight:700;color:var(--PrimaryDark);margin:0 0 4px}
+  .page-sub{color:#6b7280;font-size:15px;margin:0 0 28px}
+  /* Сетка отзывов */
+  .reviews-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:40px}
+  .review-card{border:1px solid rgba(34,139,34,.15);border-radius:14px;padding:16px;background:#fff;box-shadow:0 4px 12px rgba(16,24,40,.06)}
+  .review-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .avatar{width:42px;height:42px;border-radius:50%;background:#d1fae5;object-fit:cover;flex-shrink:0}
+  .review-author-name{font-weight:700;color:var(--PrimaryDark);font-size:14px}
+  .review-author-sub{font-size:12px;color:#9ca3af}
+  .stars{color:#f59e0b;letter-spacing:1px;font-size:15px;margin-bottom:8px}
+  .review-text{font-size:14px;color:#374151;line-height:1.55}
+  /* Форма */
+  .form-section{border:1px solid rgba(34,139,34,.2);border-radius:18px;background:#fff;padding:28px;max-width:600px}
+  .form-section-title{font-size:22px;font-weight:700;color:var(--PrimaryDark);margin:0 0 20px}
+  .form-row{margin-bottom:14px}
+  .form-row label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:5px}
+  .form-row input,.form-row textarea,.form-row select{
+    width:100%;padding:9px 12px;
+    border:1px solid #d1e8d4;border-radius:8px;
+    font-size:14px;color:#1f2937;outline:none;
+    transition:border-color .15s;background:#fff;
+    font-family:inherit;
+  }
+  .form-row input:focus,.form-row textarea:focus,.form-row select:focus{border-color:var(--PrimaryDark)}
+  .form-row textarea{resize:vertical;min-height:100px}
+  /* Звёзды-выбор */
+  .star-row{display:flex;gap:6px;flex-direction:row-reverse;justify-content:flex-end}
+  .star-row input{display:none}
+  .star-row label{font-size:28px;color:#d1d5db;cursor:pointer;transition:color .1s;line-height:1}
+  .star-row input:checked ~ label,
+  .star-row label:hover,
+  .star-row label:hover ~ label{color:#f59e0b}
+  .btn-submit{
+    display:inline-block;background:var(--PrimaryDark);color:#fff;
+    border:none;border-radius:999px;padding:11px 28px;
+    font-size:15px;font-weight:700;cursor:pointer;transition:opacity .15s;
+    margin-top:4px;
+  }
+  .btn-submit:hover{opacity:.88}
+  .alert-success{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;border-radius:10px;padding:14px 18px;margin-bottom:24px;font-size:14px;font-weight:600}
+  .alert-error{background:#fee2e2;color:#991b1b;border:1px solid #fecaca;border-radius:10px;padding:14px 18px;margin-bottom:20px;font-size:14px}
+  @media(max-width:600px){
+    .wrap{padding:16px 12px}
+    .page-title{font-size:26px}
+    .form-section{padding:18px}
+    .reviews-grid{grid-template-columns:1fr}
+  }
 </style>
 {% endblock %}
 {% block content %}
 <div class="wrap">
-  <h1>Отзывы клиентов</h1>
-  <div class="grid">
+  <h1 class="page-title">Отзывы клиентов</h1>
+  <p class="page-sub">Нам важно ваше мнение — мы читаем каждый отзыв.</p>
+
+  {% if reviews %}
+  <div class="reviews-grid">
     {% for r in reviews %}
-      <div class="card">
-        <div><strong>{{ r.company|default:r.author }}</strong></div>
-        <div class="muted">{{ r.author }}</div>
-        <p class="desc-text">{{ r.text }}</p>
-        <div class="stars">
-          {% if r.rating == 5 %}★★★★★{% elif r.rating == 4 %}★★★★☆{% elif r.rating == 3 %}★★★☆☆{% elif r.rating == 2 %}★★☆☆☆{% else %}★☆☆☆☆{% endif %}
+    <div class="review-card">
+      <div class="review-top">
+        {% if r.image %}
+          <img class="avatar" src="{{ r.image }}" alt="{{ r.author }}">
+        {% else %}
+          <div class="avatar"></div>
+        {% endif %}
+        <div>
+          <div class="review-author-name">{{ r.company|default:r.author }}</div>
+          {% if r.company %}<div class="review-author-sub">{{ r.author }}</div>{% endif %}
         </div>
       </div>
-    {% empty %}
-      <div class="muted">Пока нет опубликованных отзывов.</div>
+      <div class="stars">
+        {% if r.rating == 5 %}★★★★★{% elif r.rating == 4 %}★★★★☆{% elif r.rating == 3 %}★★★☆☆{% elif r.rating == 2 %}★★☆☆☆{% else %}★☆☆☆☆{% endif %}
+      </div>
+      <p class="review-text">{{ r.text }}</p>
+    </div>
     {% endfor %}
+  </div>
+  {% else %}
+  <p style="color:#9ca3af;margin-bottom:32px">Пока нет опубликованных отзывов.</p>
+  {% endif %}
+
+  <!-- Форма -->
+  <div class="form-section" id="review-form">
+    <div class="form-section-title">Оставить отзыв</div>
+
+    {% if submitted %}
+    <div class="alert-success">
+      Спасибо! Ваш отзыв отправлен и появится после проверки.
+    </div>
+    {% else %}
+
+    {% if error %}
+    <div class="alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="/reviews/#review-form">
+      {% csrf_token %}
+      <div class="form-row">
+        <label>Ваше имя *</label>
+        <input type="text" name="author" maxlength="150" required placeholder="Имя или псевдоним">
+      </div>
+      <div class="form-row">
+        <label>Компания / организация <span style="color:#9ca3af;font-weight:400">(необязательно)</span></label>
+        <input type="text" name="company" maxlength="200" placeholder="Название компании">
+      </div>
+      <div class="form-row">
+        <label>Магазин <span style="color:#9ca3af;font-weight:400">(необязательно)</span></label>
+        <select name="store">
+          <option value="">— не выбрано —</option>
+          {% for s in all_stores %}
+          <option value="{{ s.id }}">{{ s.name }}{% if s.address %} — {{ s.address }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>Оценка *</label>
+        <div class="star-row">
+          <input type="radio" name="rating" id="s5" value="5" checked><label for="s5" title="5">★</label>
+          <input type="radio" name="rating" id="s4" value="4"><label for="s4" title="4">★</label>
+          <input type="radio" name="rating" id="s3" value="3"><label for="s3" title="3">★</label>
+          <input type="radio" name="rating" id="s2" value="2"><label for="s2" title="2">★</label>
+          <input type="radio" name="rating" id="s1" value="1"><label for="s1" title="1">★</label>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>Текст отзыва *</label>
+        <textarea name="text" maxlength="2000" required placeholder="Расскажите о вашем опыте…"></textarea>
+      </div>
+      <button type="submit" class="btn-submit">Отправить отзыв</button>
+    </form>
+
+    {% endif %}
   </div>
 </div>
 {% endblock %}

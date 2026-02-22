@@ -19,7 +19,7 @@ from urllib.parse import quote, urlsplit
 import json
 from datetime import date
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import Product, Discount, Order, Category, Review, HeroBanner, Store, StoreManager, FlowerTag
+from .models import Product, Discount, Order, Category, Review, HeroBanner, Store, StoreManager, FlowerTag, ShowcaseItem, Ticker
 from .serializers import (ProductSerializer, DiscountSerializer, OrderSerializer, CategorySerializer
 , TokenObtainPairSerializer, RegisterSerializer, UserSerializer, ReviewSerializer, PublicReviewCreateSerializer,
 HeroBannerSerializer, StoreSerializer, StoreManagerSerializer, BotProductCreateSerializer, FlowerTagSerializer)
@@ -59,6 +59,35 @@ def home_page(request):
         if starts_ok and ends_ok:
             active_banners.append(banner)
 
+    # Витрины по магазинам через ShowcaseItem
+    active_stores = Store.objects.filter(is_active=True).order_by("sort_order", "name")
+    store_showcases = []
+    for store in active_stores:
+        items_qs = list(
+            ShowcaseItem.objects.filter(store=store, product__is_published=True)
+            .select_related('product')
+            .order_by("sort_order", "-id")[:8]
+        )
+        if not items_qs:
+            continue
+        cards = [
+            {
+                "id": item.product.id,
+                "slug": item.product.slug,
+                "title": item.product.title.replace("/", " ").replace("\\", " ").strip(),
+                "price": item.product.price,
+                "image": product_image_url(item.product),
+                "hover_image": normalize_public_url(item.product.image) if item.product.image else product_image_url(item.product),
+                "href": f"/store/{item.product.slug}/" if item.product.slug else f"/store/{item.product.id}/",
+            }
+            for item in items_qs
+        ]
+        store_showcases.append({
+            "store": store,
+            "cards": cards,
+        })
+
+    # Единая витрина (fallback) — все магазины вместе, если нет разбивки
     showcase_products = list(
         Product.objects.filter(is_online_showcase=True, is_published=True)
         .select_related("category")
@@ -113,6 +142,7 @@ def home_page(request):
             "active_banners": active_banners,
             "category_cards": category_cards,
             "showcase_cards": showcase_cards,
+            "store_showcases": store_showcases,
             "reviews": reviews,
             "stores": stores,
         },
@@ -303,8 +333,41 @@ def categories_page(request):
 
 
 def reviews_page(request):
-    reviews = Review.objects.filter(is_published=True).order_by("sort_order", "-created_at")
-    return render(request, "shop/reviews.html", {"reviews": reviews})
+    submitted = False
+    error = None
+    all_stores = Store.objects.filter(is_active=True).order_by('sort_order', 'name')
+    if request.method == 'POST':
+        author = request.POST.get('author', '').strip()
+        text = request.POST.get('text', '').strip()
+        rating = request.POST.get('rating', '5')
+        company = request.POST.get('company', '').strip()
+        store_id = request.POST.get('store', '').strip()
+        try:
+            rating = int(rating)
+            if rating < 1 or rating > 5:
+                raise ValueError
+        except (ValueError, TypeError):
+            rating = 5
+        store_obj = None
+        if store_id:
+            try:
+                store_obj = Store.objects.get(id=int(store_id), is_active=True)
+            except (Store.DoesNotExist, ValueError):
+                pass
+        if author and text:
+            Review.objects.create(
+                author=author,
+                company=company,
+                text=text,
+                rating=rating,
+                store=store_obj,
+                is_published=False,
+            )
+            submitted = True
+        else:
+            error = 'Пожалуйста, заполните имя и текст отзыва.'
+    reviews = Review.objects.filter(is_published=True).select_related('store').order_by("sort_order", "-created_at")
+    return render(request, "shop/reviews.html", {"reviews": reviews, "submitted": submitted, "error": error, "all_stores": all_stores})
 
 
 def site_page(request, slug):
@@ -668,10 +731,33 @@ def cart_checkout(request):
 # ─── ДАШБОРД ─────────────────────────────────────────────────────────────────
 
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import logout, update_session_auth_hash
+from django.contrib.auth import logout, update_session_auth_hash, authenticate, login as auth_login
 from django.contrib import messages
 from django.core.files.storage import default_storage
 import decimal
+
+
+def dashboard_login(request):
+    if request.user.is_authenticated:
+        return redirect('/dashboard/products/')
+    error = None
+    if request.method == 'POST':
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        user = authenticate(request, username=username, password=password)
+        if user is not None and user.is_active:
+            has_access = (
+                user.is_staff or user.is_superuser or
+                (hasattr(user, 'store_manager') and user.store_manager.is_active)
+            )
+            if has_access:
+                auth_login(request, user)
+                return redirect(request.GET.get('next', '/dashboard/products/'))
+            else:
+                error = 'Нет доступа к дашборду'
+        else:
+            error = 'Неверный логин или пароль'
+    return render(request, 'shop/dashboard/login.html', {'error': error})
 
 
 def _dash_product_image(product, request):
@@ -682,11 +768,29 @@ def _dash_product_image(product, request):
     return "/static/hero/today-desktop.svg"
 
 
-@login_required(login_url='/admin/login/')
+def _get_manager_stores(user):
+    """Возвращает queryset магазинов для пользователя.
+    Superuser/staff — все магазины (None = без ограничений).
+    Менеджер — только его магазины через StoreManager."""
+    if user.is_superuser or user.is_staff:
+        return None  # без фильтра
+    try:
+        sm = user.store_manager
+        if sm.is_active:
+            return sm.stores.filter(is_active=True)
+    except StoreManager.DoesNotExist:
+        pass
+    return Store.objects.none()
+
+
+@login_required(login_url='/dashboard/login/')
 def dashboard_products(request):
-    products_qs = Product.objects.select_related('category').prefetch_related('stores').order_by('-id')
+    manager_stores = _get_manager_stores(request.user)
+    qs = Product.objects.select_related('category').prefetch_related('stores').order_by('-id')
+    if manager_stores is not None:
+        qs = qs.filter(stores__in=manager_stores).distinct()
     products = []
-    for p in products_qs:
+    for p in qs:
         products.append({
             'id': p.id,
             'title': p.title,
@@ -700,16 +804,27 @@ def dashboard_products(request):
     return render(request, 'shop/dashboard/products.html', {'products': products, 'active': 'products'})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 def dashboard_product_form(request, product_id=None):
     product = None
     product_store_ids = []
+    manager_stores = _get_manager_stores(request.user)
     if product_id:
         product = get_object_or_404(Product, id=product_id)
+        # Менеджер не может редактировать чужие товары
+        if manager_stores is not None:
+            allowed_ids = set(manager_stores.values_list('id', flat=True))
+            product_store_ids_check = set(product.stores.values_list('id', flat=True))
+            if not allowed_ids & product_store_ids_check:
+                from django.http import HttpResponseForbidden
+                return HttpResponseForbidden('Нет доступа к этому товару')
         product_store_ids = list(product.stores.values_list('id', flat=True))
 
     categories = Category.objects.order_by('sort_order', 'name')
-    stores = Store.objects.filter(is_active=True).order_by('name')
+    if manager_stores is not None:
+        stores = manager_stores.order_by('name')
+    else:
+        stores = Store.objects.filter(is_active=True).order_by('name')
 
     if request.method == 'POST':
         title = request.POST.get('title', '').strip()
@@ -777,7 +892,7 @@ def dashboard_product_form(request, product_id=None):
     })
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 def dashboard_hero(request):
     from django.core import serializers as dj_serializers
     import json as _json
@@ -799,28 +914,70 @@ def dashboard_hero(request):
             'sort_order': b.sort_order,
             'is_active': b.is_active,
         })
+    # Категории для быстрого выбора ссылки
+    categories = list(
+        Category.objects.order_by('sort_order', 'name').values('id', 'name', 'slug', 'parent_id')
+    )
     return render(request, 'shop/dashboard/hero.html', {
         'banners': banners,
         'banners_json': _json.dumps(banners_data, ensure_ascii=False),
+        'categories_json': _json.dumps(categories, ensure_ascii=False),
         'active': 'hero'
     })
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 def dashboard_showcase(request):
-    showcase_qs = Product.objects.filter(is_online_showcase=True, is_published=True).order_by('showcase_sort_order', '-id')
-    all_qs = Product.objects.filter(is_published=True).select_related('category').order_by('-id')
+    manager_stores = _get_manager_stores(request.user)
+    is_admin = manager_stores is None  # суперадмин/staff видит все магазины
+
+    # Полный список магазинов для табов (только для админа)
+    all_stores = Store.objects.filter(is_active=True).order_by('sort_order', 'name') if is_admin else None
+
+    # Определяем активный магазин
+    selected_store = None
+    if is_admin:
+        try:
+            store_id = int(request.GET.get('store', 0))
+        except (ValueError, TypeError):
+            store_id = 0
+        if store_id:
+            selected_store = Store.objects.filter(id=store_id, is_active=True).first()
+        # Если не выбран — берём первый
+        if not selected_store and all_stores.exists():
+            selected_store = all_stores.first()
+        stores_qs = Store.objects.filter(id=selected_store.id) if selected_store else Store.objects.none()
+    else:
+        # Менеджер — только его магазины
+        stores_qs = manager_stores
+        if stores_qs.exists():
+            selected_store = stores_qs.first()
+
+    # Товары в витрине — через ShowcaseItem
+    showcase_items_qs = ShowcaseItem.objects.filter(
+        store__in=stores_qs
+    ).select_related('product', 'store').order_by('sort_order', '-id')
 
     showcase_products = []
-    for p in showcase_qs:
+    showcase_product_ids = set()
+    for item in showcase_items_qs:
+        p = item.product
         showcase_products.append({
             'id': p.id,
             'title': p.title,
             'price': p.price,
-            'showcase_sort_order': p.showcase_sort_order,
+            'showcase_sort_order': item.sort_order,
             'image_url': _dash_product_image(p, request),
-            'is_online_showcase': p.is_online_showcase,
+            'is_online_showcase': True,
+            'store_name': item.store.name,
+            'showcase_item_id': item.id,
         })
+        showcase_product_ids.add(p.id)
+
+    # Все товары для добавления (фильтруем по выбранному магазину)
+    all_qs = Product.objects.filter(is_published=True).select_related('category').order_by('-id')
+    if stores_qs:
+        all_qs = all_qs.filter(stores__in=stores_qs).distinct()
 
     all_products = []
     for p in all_qs:
@@ -829,17 +986,19 @@ def dashboard_showcase(request):
             'title': p.title,
             'price': p.price,
             'image_url': _dash_product_image(p, request),
-            'is_online_showcase': p.is_online_showcase,
+            'is_online_showcase': p.id in showcase_product_ids,
         })
 
     return render(request, 'shop/dashboard/showcase.html', {
         'showcase_products': showcase_products,
         'all_products': all_products,
+        'all_stores': all_stores,           # для табов (только у админа)
+        'selected_store': selected_store,   # активный магазин
         'active': 'showcase'
     })
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 def dashboard_categories(request):
     categories = Category.objects.prefetch_related('products').select_related('parent').order_by('sort_order', 'name')
     cats_data = []
@@ -859,7 +1018,7 @@ def dashboard_categories(request):
     })
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 def dashboard_profile(request):
     if request.method == 'POST':
         user = request.user
@@ -874,7 +1033,7 @@ def dashboard_profile(request):
     return render(request, 'shop/dashboard/profile.html', {'active': 'profile'})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 def dashboard_profile_password(request):
     if request.method == 'POST':
         old = request.POST.get('old_password', '')
@@ -897,12 +1056,36 @@ def dashboard_logout(request):
     if request.method == 'POST':
         logout(request)
     from django.shortcuts import redirect
-    return redirect('/admin/login/')
+    return redirect('/dashboard/login/')
+
+
+@login_required(login_url='/dashboard/login/')
+def dashboard_reviews(request):
+    manager_stores = _get_manager_stores(request.user)
+    qs = Review.objects.select_related('store').order_by('-created_at')
+    if manager_stores is not None:
+        qs = qs.filter(store__in=manager_stores)
+    reviews_data = []
+    for r in qs:
+        reviews_data.append({
+            'id': r.id,
+            'author': r.author,
+            'company': r.company,
+            'text': r.text[:120] + ('…' if len(r.text) > 120 else ''),
+            'rating': r.rating,
+            'is_published': r.is_published,
+            'store_name': r.store.name if r.store else '—',
+            'created_at': r.created_at.strftime('%d.%m.%Y %H:%M'),
+        })
+    return render(request, 'shop/dashboard/reviews.html', {
+        'reviews': reviews_data,
+        'active': 'reviews',
+    })
 
 
 # ─── DASHBOARD API (JSON endpoints) ──────────────────────────────────────────
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_product_price(request, product_id):
     product = get_object_or_404(Product, id=product_id)
@@ -918,21 +1101,62 @@ def dash_api_product_price(request, product_id):
     return JsonResponse({'ok': True})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
+@require_POST
+def dash_api_product_title(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    try:
+        data = json.loads(request.body)
+        title = str(data.get('title', '')).strip()
+        if not title:
+            raise ValueError
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'Название не может быть пустым'}, status=400)
+    product.title = title
+    product.save(update_fields=['title'])
+    return JsonResponse({'ok': True})
+
+
+@login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_product_showcase(request, product_id):
     product = get_object_or_404(Product, id=product_id)
+    manager_stores = _get_manager_stores(request.user)
     try:
         data = json.loads(request.body)
         value = bool(data.get('value'))
     except Exception:
         return JsonResponse({'ok': False, 'error': 'bad data'}, status=400)
-    product.is_online_showcase = value
-    product.save(update_fields=['is_online_showcase'])
+
+    if manager_stores is not None:
+        # Менеджер — добавляем/убираем ShowcaseItem только для его магазинов
+        for store in manager_stores:
+            if value:
+                ShowcaseItem.objects.get_or_create(store=store, product=product)
+            else:
+                ShowcaseItem.objects.filter(store=store, product=product).delete()
+    else:
+        # Суперюзер — работаем через ShowcaseItem с учётом store_id из запроса
+        try:
+            store_id = int(data.get('store_id', 0))
+        except (TypeError, ValueError):
+            store_id = 0
+        if store_id:
+            store = Store.objects.filter(id=store_id, is_active=True).first()
+            if store:
+                if value:
+                    ShowcaseItem.objects.get_or_create(store=store, product=product)
+                else:
+                    ShowcaseItem.objects.filter(store=store, product=product).delete()
+        else:
+            # Нет store_id — fallback на is_online_showcase
+            product.is_online_showcase = value
+            product.save(update_fields=['is_online_showcase'])
+
     return JsonResponse({'ok': True})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_product_published(request, product_id):
     product = get_object_or_404(Product, id=product_id)
@@ -946,7 +1170,7 @@ def dash_api_product_published(request, product_id):
     return JsonResponse({'ok': True})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_product_delete(request, product_id):
     product = get_object_or_404(Product, id=product_id)
@@ -954,7 +1178,7 @@ def dash_api_product_delete(request, product_id):
     return JsonResponse({'ok': True})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_showcase_order(request):
     try:
@@ -962,12 +1186,30 @@ def dash_api_showcase_order(request):
         items = data.get('items', [])
     except Exception:
         return JsonResponse({'ok': False, 'error': 'bad data'}, status=400)
+    manager_stores = _get_manager_stores(request.user)
+    try:
+        store_id = int(data.get('store_id', 0))
+    except (TypeError, ValueError):
+        store_id = 0
     for item in items:
-        Product.objects.filter(id=item['id']).update(showcase_sort_order=item.get('sort', 0))
+        if manager_stores is not None:
+            ShowcaseItem.objects.filter(
+                product_id=item['id'],
+                store__in=manager_stores
+            ).update(sort_order=item.get('sort', 0))
+        else:
+            # Суперюзер — через ShowcaseItem с учётом store_id
+            if store_id:
+                ShowcaseItem.objects.filter(
+                    product_id=item['id'],
+                    store_id=store_id
+                ).update(sort_order=item.get('sort', 0))
+            else:
+                Product.objects.filter(id=item['id']).update(showcase_sort_order=item.get('sort', 0))
     return JsonResponse({'ok': True})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_banner_create(request):
     data = request.POST if request.POST else None
@@ -1023,7 +1265,7 @@ def dash_api_banner_create(request):
     return JsonResponse({'ok': True, 'id': banner.id})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_banner_save(request, banner_id):
     banner = get_object_or_404(HeroBanner, id=banner_id)
@@ -1079,7 +1321,7 @@ def dash_api_banner_save(request, banner_id):
     return JsonResponse({'ok': True})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_banner_delete(request, banner_id):
     banner = get_object_or_404(HeroBanner, id=banner_id)
@@ -1087,7 +1329,7 @@ def dash_api_banner_delete(request, banner_id):
     return JsonResponse({'ok': True})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_category_create(request):
     try:
@@ -1111,7 +1353,7 @@ def dash_api_category_create(request):
     return JsonResponse({'ok': True, 'id': cat.id})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_category_sort(request, cat_id):
     cat = get_object_or_404(Category, id=cat_id)
@@ -1124,9 +1366,35 @@ def dash_api_category_sort(request, cat_id):
     return JsonResponse({'ok': True})
 
 
-@login_required(login_url='/admin/login/')
+@login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_category_delete(request, cat_id):
     cat = get_object_or_404(Category, id=cat_id)
     cat.delete()
+    return JsonResponse({'ok': True})
+
+
+@login_required(login_url='/dashboard/login/')
+@require_POST
+def dash_api_review_published(request, review_id):
+    review = get_object_or_404(Review, id=review_id)
+    manager_stores = _get_manager_stores(request.user)
+    if manager_stores is not None:
+        if review.store is None or review.store not in manager_stores:
+            return JsonResponse({'ok': False, 'error': 'Нет доступа'}, status=403)
+    data = json.loads(request.body)
+    review.is_published = bool(data.get('value'))
+    review.save(update_fields=['is_published', 'updated_at'])
+    return JsonResponse({'ok': True, 'is_published': review.is_published})
+
+
+@login_required(login_url='/dashboard/login/')
+@require_POST
+def dash_api_review_delete(request, review_id):
+    review = get_object_or_404(Review, id=review_id)
+    manager_stores = _get_manager_stores(request.user)
+    if manager_stores is not None:
+        if review.store is None or review.store not in manager_stores:
+            return JsonResponse({'ok': False, 'error': 'Нет доступа'}, status=403)
+    review.delete()
     return JsonResponse({'ok': True})

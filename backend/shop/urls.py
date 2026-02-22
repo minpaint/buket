@@ -9,13 +9,14 @@ from .views import (ProductViewSet, OrderViewSet, DiscountViewSet, CategoryViewS
                     cart_page, cart_add, cart_update, cart_remove, cart_count, cart_checkout, cart_drawer,
                     contacts_page,
                     # Dashboard pages
-                    dashboard_products, dashboard_product_form, dashboard_hero, dashboard_showcase,
-                    dashboard_categories, dashboard_profile, dashboard_profile_password, dashboard_logout,
+                    dashboard_login, dashboard_products, dashboard_product_form, dashboard_hero, dashboard_showcase,
+                    dashboard_categories, dashboard_reviews, dashboard_profile, dashboard_profile_password, dashboard_logout,
                     # Dashboard API
-                    dash_api_product_price, dash_api_product_showcase, dash_api_product_published,
+                    dash_api_product_price, dash_api_product_title, dash_api_product_showcase, dash_api_product_published,
                     dash_api_product_delete, dash_api_showcase_order,
                     dash_api_banner_create, dash_api_banner_save, dash_api_banner_delete,
                     dash_api_category_create, dash_api_category_sort, dash_api_category_delete,
+                    dash_api_review_published, dash_api_review_delete,
                     )
 
 
@@ -55,6 +56,7 @@ urlpatterns = [
     path('cart/drawer/', cart_drawer, name='cart_drawer'),
 
     # Dashboard pages
+    path('dashboard/login/', dashboard_login, name='dash_login'),
     path('dashboard/', RedirectView.as_view(url='/dashboard/products/', permanent=False), name='dash_home'),
     path('dashboard/products/', dashboard_products, name='dash_products'),
     path('dashboard/products/add/', dashboard_product_form, name='dash_product_add'),
@@ -62,12 +64,14 @@ urlpatterns = [
     path('dashboard/hero/', dashboard_hero, name='dash_hero'),
     path('dashboard/showcase/', dashboard_showcase, name='dash_showcase'),
     path('dashboard/categories/', dashboard_categories, name='dash_categories'),
+    path('dashboard/reviews/', dashboard_reviews, name='dash_reviews'),
     path('dashboard/profile/', dashboard_profile, name='dash_profile'),
     path('dashboard/profile/password/', dashboard_profile_password, name='dash_profile_password'),
     path('dashboard/logout/', dashboard_logout, name='dash_logout'),
 
     # Dashboard API
     path('dashboard/api/product/<int:product_id>/price/', dash_api_product_price, name='dash_api_product_price'),
+    path('dashboard/api/product/<int:product_id>/title/', dash_api_product_title, name='dash_api_product_title'),
     path('dashboard/api/product/<int:product_id>/showcase/', dash_api_product_showcase, name='dash_api_product_showcase'),
     path('dashboard/api/product/<int:product_id>/published/', dash_api_product_published, name='dash_api_product_published'),
     path('dashboard/api/product/<int:product_id>/delete/', dash_api_product_delete, name='dash_api_product_delete'),
@@ -78,6 +82,8 @@ urlpatterns = [
     path('dashboard/api/category/create/', dash_api_category_create, name='dash_api_category_create'),
     path('dashboard/api/category/<int:cat_id>/sort/', dash_api_category_sort, name='dash_api_category_sort'),
     path('dashboard/api/category/<int:cat_id>/delete/', dash_api_category_delete, name='dash_api_category_delete'),
+    path('dashboard/api/review/<int:review_id>/published/', dash_api_review_published, name='dash_api_review_published'),
+    path('dashboard/api/review/<int:review_id>/delete/', dash_api_review_delete, name='dash_api_review_delete'),
 
     path('api/', api_root, name='api-root'),
     path('api/reviews/submit/', ReviewSubmitView.as_view(), name='review-submit'),

@@ -33,6 +33,45 @@
     .muted{color:#6b7280;font-size:14px}
     .price-text{font-family:'Segoe UI','Noto Sans',Arial,sans-serif;color:#000;font-weight:700;letter-spacing:0}
 
+    /* ── TICKER ── */
+    .site-ticker{
+      background:var(--PrimaryDark);
+      color:#fff;
+      font-size:13px;
+      font-weight:500;
+      overflow:hidden;
+      white-space:nowrap;
+      height:32px;
+      display:flex;
+      align-items:center;
+    }
+    .ticker-track{
+      display:inline-flex;
+      gap:0;
+      animation:ticker-scroll 30s linear infinite;
+      will-change:transform;
+    }
+    .site-ticker:hover .ticker-track{animation-play-state:paused}
+    .ticker-item{
+      padding:0 48px;
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+    }
+    .ticker-item::before{
+      content:'🌸';
+      font-size:12px;
+      opacity:.8;
+    }
+    @keyframes ticker-scroll{
+      0%{transform:translateX(0)}
+      100%{transform:translateX(-50%)}
+    }
+    @media(max-width:560px){
+      .site-ticker{font-size:12px;height:28px}
+      .ticker-item{padding:0 32px}
+    }
+
     /* ── HEADER ── */
     .site-header{position:sticky;top:0;z-index:40;background:#fff;box-shadow:0 4px 14px rgba(0,0,0,.07)}
     .head-inner{max-width:1280px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px}
@@ -167,6 +206,9 @@
     .foot-inner{max-width:1280px;margin:0 auto;padding:28px 20px;display:flex;align-items:center;justify-content:space-between;gap:20px}
     .foot-inner p{margin:0;color:var(--PrimaryDark);font-size:12px}
     .foot-logo{height:44px;width:auto}
+    .foot-payments{display:flex;flex-direction:column;align-items:center;gap:8px}
+    .foot-payments-label{margin:0;font-size:13px;font-weight:700;color:var(--PrimaryDark)}
+    .foot-payments img{max-width:260px;width:100%;height:auto;display:block}
 
     @media (max-width:900px){
       .head-inner{padding:10px 12px}
@@ -188,6 +230,19 @@
   {% block extra_styles %}{% endblock %}
 </head>
 <body>
+  {% if ticker_items %}
+  <div class="site-ticker" aria-label="Объявления">
+    <div class="ticker-track" id="tickerTrack">
+      {% for item in ticker_items %}
+        <span class="ticker-item">{{ item }}</span>
+      {% endfor %}
+      {% comment %}Дублируем для бесшовной прокрутки{% endcomment %}
+      {% for item in ticker_items %}
+        <span class="ticker-item">{{ item }}</span>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
   <header class="site-header">
     <div class="head-inner">
       <button class="burger-btn" id="burgerBtn" type="button" aria-label="Открыть меню">☰</button>
@@ -258,6 +313,10 @@
   <footer class="site-footer">
     <div class="foot-inner">
       <p>Copyright © 2024 Buket.by. Все права защищены.</p>
+      <div class="foot-payments">
+        <p class="foot-payments-label">Мы принимаем</p>
+        <img src="/static/buket_oplata.jpg" alt="Способы оплаты: ArtPay, Visa, MasterCard, Белкарт">
+      </div>
       <img class="foot-logo" src="/static/logo.png" alt="Buket logo">
     </div>
   </footer>

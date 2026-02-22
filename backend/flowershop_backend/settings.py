@@ -85,6 +85,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'shop.context_processors.ticker',
             ],
         },
     },
@@ -145,6 +146,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
@@ -175,4 +177,4 @@ SIMPLE_JWT = {
 
 CORS_ALLOW_ALL_ORIGINS = True 
 
-TELEGRAM_BOT_SECRET = os.getenv('TELEGRAM_BOT_SECRET', '')
+TELEGRAM_BOT_SECRET = os.getenv('TELEGRAM_BOT_SECRET', 'buket_secret_2025')
