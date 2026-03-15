@@ -1,5 +1,20 @@
 {% extends "shop/base.html" %}
-{% block title %}{{ page.title }} - Buket.by{% endblock %}
+{% block title %}{{ page.title }} | Buket.by{% endblock %}
+{% block meta_description %}{% if page.seo_description %}{{ page.seo_description }}{% else %}{{ page.title }} — цветочный магазин Buket.by. Доставка букетов по Минску, самовывоз, оплата картой.{% endif %}{% endblock %}
+{% block og_title %}{{ page.title }} | Buket.by{% endblock %}
+{% block og_description %}{% if page.seo_description %}{{ page.seo_description }}{% else %}{{ page.title }} — цветочный магазин Buket.by в Минске.{% endif %}{% endblock %}
+{% block schema_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type":"ListItem","position":1,"name":"Главная","item":"https://buket.by/"},
+    {"@type":"ListItem","position":2,"name":"{{ page.title|escapejs }}","item":"https://buket.by{{ request.path }}"}
+  ]
+}
+</script>
+{% endblock %}
 {% block extra_styles %}
 <style>
   .sp-wrap{max-width:860px;margin:0 auto;padding:28px 20px 48px}
@@ -27,6 +42,14 @@
   .schedule-table td{padding:8px 12px;font-size:15px;color:#1f2937;border-bottom:1px solid #e5e7eb}
   .schedule-table tr:last-child td{border-bottom:none}
   .schedule-table td:first-child{color:#6b7280;white-space:nowrap}
+  /* Контент статьи (универсальный) */
+  .site-page-content h2{font-size:20px;font-weight:700;color:var(--PrimaryDark);margin:28px 0 12px;padding-bottom:8px;border-bottom:2px solid #d1fae5}
+  .site-page-content h2:first-child{margin-top:0}
+  .site-page-content p{margin:0 0 12px;line-height:1.7;color:#1f2937}
+  .site-page-content ul,.site-page-content ol{margin:0 0 14px;padding-left:22px;line-height:1.7;color:#1f2937}
+  .site-page-content li{margin-bottom:6px}
+  .site-page-content a{color:var(--PrimaryDark);text-decoration:underline}
+  .site-page-content strong{font-weight:700}
   /* Общее */
   .sp-back{display:inline-flex;align-items:center;gap:6px;color:var(--PrimaryDark);font-weight:600;margin-bottom:18px;opacity:.75;transition:opacity .15s}
   .sp-back:hover{opacity:1}

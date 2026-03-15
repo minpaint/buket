@@ -1,13 +1,14 @@
 from django.urls import include, path
 from django.views.generic import RedirectView
 from rest_framework.routers import DefaultRouter
+from .telegram_webhook import TelegramWebhookView
 from .views import (ProductViewSet, OrderViewSet, DiscountViewSet, CategoryViewSet, ReviewViewSet, ReviewSubmitView, RegisterView
                     , api_root, UserProfileViewSet, HeroBannerViewSet, hero_banner_current, StoreViewSet, FlowerTagViewSet,
                     BotProductCreateView, BotAuthView, home_page, store_page, product_page, product_page_by_id,
                     store_page_category, store_page_flower, old_product_redirect,
                     categories_page, reviews_page, site_page,
                     cart_page, cart_add, cart_update, cart_remove, cart_count, cart_checkout, cart_drawer,
-                    contacts_page,
+                    contacts_page, robots_txt, sitemap_xml,
                     # Dashboard pages
                     dashboard_login, dashboard_products, dashboard_product_form, dashboard_hero, dashboard_showcase,
                     dashboard_categories, dashboard_reviews, dashboard_profile, dashboard_profile_password, dashboard_logout,
@@ -17,6 +18,7 @@ from .views import (ProductViewSet, OrderViewSet, DiscountViewSet, CategoryViewS
                     dash_api_banner_create, dash_api_banner_save, dash_api_banner_delete,
                     dash_api_category_create, dash_api_category_sort, dash_api_category_delete,
                     dash_api_review_published, dash_api_review_delete,
+                    dashboard_ticker, dash_api_ticker_save, dash_api_ticker_delete,
                     )
 
 
@@ -32,6 +34,8 @@ router.register(r'stores', StoreViewSet, basename='store')
 router.register(r'flower-tags', FlowerTagViewSet, basename='flower-tag')
 
 urlpatterns = [
+    path('robots.txt', robots_txt, name='robots_txt'),
+    path('sitemap.xml', sitemap_xml, name='sitemap_xml'),
     path('', home_page, name='web_home'),
     path('store/', store_page, name='web_store'),
     # ЧПУ фильтры каталога (до <slug:slug> чтобы не конфликтовали)
@@ -46,6 +50,7 @@ urlpatterns = [
     path('categories/', categories_page, name='web_categories'),
     path('reviews/', reviews_page, name='web_reviews'),
     path('p/<slug:slug>/', site_page, name='web_site_page'),
+    path('page/<slug:slug>/', site_page, name='web_site_page_alt'),
     path('kontakty/', contacts_page, name='web_contacts'),
     path('cart/', cart_page, name='web_cart'),
     path('cart/add/<int:product_id>/', cart_add, name='cart_add'),
@@ -84,6 +89,9 @@ urlpatterns = [
     path('dashboard/api/category/<int:cat_id>/delete/', dash_api_category_delete, name='dash_api_category_delete'),
     path('dashboard/api/review/<int:review_id>/published/', dash_api_review_published, name='dash_api_review_published'),
     path('dashboard/api/review/<int:review_id>/delete/', dash_api_review_delete, name='dash_api_review_delete'),
+    path('dashboard/ticker/', dashboard_ticker, name='dash_ticker'),
+    path('dashboard/api/ticker/save/', dash_api_ticker_save, name='dash_api_ticker_save'),
+    path('dashboard/api/ticker/<int:ticker_id>/delete/', dash_api_ticker_delete, name='dash_api_ticker_delete'),
 
     path('api/', api_root, name='api-root'),
     path('api/reviews/submit/', ReviewSubmitView.as_view(), name='review-submit'),
@@ -91,6 +99,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/v1/products/from-bot/', BotProductCreateView.as_view(), name='bot-product-create'),
     path('api/v1/auth/bot-token/', BotAuthView.as_view(), name='bot-auth'),
+    path('api/v1/telegram/webhook/', TelegramWebhookView.as_view(), name='telegram-webhook'),
     path('api/profile/', UserProfileViewSet.as_view(), name='user_profile'),
     path('register/', RegisterView.as_view(), name='auth_register'),
 ]

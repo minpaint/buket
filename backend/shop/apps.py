@@ -18,6 +18,10 @@ class ShopConfig(AppConfig):
         if os.environ.get('BOT_AUTOSTART', '').lower() == 'false':
             return
 
+        # В webhook-режиме бот обрабатывается самим Django и polling не нужен.
+        if os.environ.get('TELEGRAM_BOT_MODE', '').lower() == 'webhook':
+            return
+
         # Запускаем бота только в основном процессе Django.
         # При runserver Django запускает два процесса: reloader и основной.
         # RUN_MAIN=true стоит только в основном — именно там запускаем бота.

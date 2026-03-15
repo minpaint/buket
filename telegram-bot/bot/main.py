@@ -16,6 +16,11 @@ from .states import ProductForm
 router = Router()
 settings = get_settings()
 api_client = ApiClient(settings.django_api_url, settings.bot_secret)
+BOT_COMMANDS = [
+    BotCommand(command="start", description="Запустить бота"),
+    BotCommand(command="add", description="Добавить букет в витрину"),
+    BotCommand(command="cancel", description="Отменить действие"),
+]
 
 
 def parse_price(raw: str) -> str | None:
@@ -163,11 +168,7 @@ async def main():
     if not settings.bot_token or not settings.bot_secret:
         raise RuntimeError("BOT_TOKEN и BOT_SECRET обязательны.")
     bot = Bot(token=settings.bot_token)
-    await bot.set_my_commands([
-        BotCommand(command="start", description="Запустить бота"),
-        BotCommand(command="add", description="Добавить букет в витрину"),
-        BotCommand(command="cancel", description="Отменить действие"),
-    ])
+    await bot.set_my_commands(BOT_COMMANDS)
     dp = Dispatcher()
     dp.include_router(router)
     await dp.start_polling(bot)

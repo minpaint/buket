@@ -20,6 +20,9 @@ env/
 [Ss]cripts/
 pyvenv.cfg
 pip-selfcheck.json
+!scripts/
+scripts/*
+!scripts/deploy_hosterby.sh
 
 # Django
 *.sqlite3
@@ -30,6 +33,8 @@ backend/static/collected/
 # Environment variables
 .env
 .env.*
+!backend/.env.example
+!telegram-bot/.env.example
 
 # IDE
 .idea/

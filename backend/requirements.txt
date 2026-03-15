@@ -11,3 +11,15 @@ tzdata==2025.2
 uritemplate==4.1.1
 djangorestframework-simplejwt==5.3.1
 django-cors-headers==4.6.0
+aiogram==3.13.1
+aiohttp==3.10.10
+
+# ── Продакшн-зависимости ───────────────────────────────────────────────────────
+Pillow>=10.0.0               # обработка изображений (ImageField)
+gunicorn>=21.0.0             # WSGI-сервер для продакшна
+whitenoise>=6.6.0            # раздача статических файлов без Nginx
+python-dotenv>=1.0.0         # загрузка .env файла
+
+# ── Опционально (для PostgreSQL в продакшне) ───────────────────────────────────
+# psycopg2-binary>=2.9.0
+# dj-database-url>=2.1.0

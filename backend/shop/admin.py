@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from .models import Product, ProductImage, Discount, Order, OrderItem, Category, Review, HeroBanner, Store, StoreManager, StorePhone, StorePhoto, FlowerTag, SitePage, ShowcaseItem, Ticker
+from .models import Product, ProductImage, Discount, Order, OrderItem, Category, Review, HeroBanner, Store, StoreManager, StorePhone, StorePhoto, FlowerTag, SitePage, ShowcaseItem, Ticker, SiteSettings, GuestOrder, GuestOrderItem
 
 admin.site.site_header = 'Администрирование Buket.by'
 admin.site.site_title = 'Buket.by Admin'
@@ -111,7 +111,7 @@ class ProductAdmin(admin.ModelAdmin):
 
     @admin.display(description='Стоимость', ordering='price')
     def display_price(self, obj):
-        return f'{obj.price:.2f} BYN'
+        return f'{obj.price:.2f} BYN' if obj.price is not None else '—'
 
     @admin.display(description='Категории (M2M)')
     def categories_display(self, obj):
@@ -258,7 +258,18 @@ class SitePageAdmin(admin.ModelAdmin):
     list_display = ('title', 'slug', 'is_active', 'sort_order')
     list_editable = ('is_active', 'sort_order')
     prepopulated_fields = {'slug': ('title',)}
-    fields = ('title', 'slug', 'content', 'is_active', 'sort_order')
+    fieldsets = (
+        ('Основное', {
+            'fields': ('title', 'slug', 'is_active', 'sort_order')
+        }),
+        ('SEO', {
+            'fields': ('seo_description',),
+            'description': 'Заполните для улучшения поисковой видимости страницы',
+        }),
+        ('Содержимое', {
+            'fields': ('content',),
+        }),
+    )
 
 
 @admin.register(ShowcaseItem)
@@ -278,3 +289,81 @@ class TickerAdmin(admin.ModelAdmin):
     def short_text(self, obj):
         return obj.text[:80] + ('…' if len(obj.text) > 80 else '')
     short_text.short_description = 'Текст'
+
+
+@admin.register(SiteSettings)
+class SiteSettingsAdmin(admin.ModelAdmin):
+    save_on_top = True
+    list_display = ('__str__', 'delivery_cost', 'delivery_free_from', 'notification_email')
+    fieldsets = (
+        ('Доставка', {
+            'fields': ('delivery_cost', 'delivery_free_from'),
+        }),
+        ('Уведомления на Email', {
+            'fields': ('notification_email',),
+            'description': 'Оставьте пустым, чтобы не отправлять email',
+        }),
+        ('Уведомления в Telegram', {
+            'fields': ('telegram_notify_token', 'telegram_notify_chat_id'),
+            'description': (
+                'Создайте бота через @BotFather, вставьте токен. '
+                'Chat ID — это числовой ID чата/группы (можно узнать через @userinfobot)'
+            ),
+        }),
+        ('Аналитика', {
+            'fields': ('metrika_counter',),
+            'description': 'Вставьте полный код счётчика Яндекс.Метрики (тег &lt;script&gt;...&lt;/script&gt;)',
+        }),
+    )
+
+    def has_add_permission(self, request):
+        return not SiteSettings.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+class GuestOrderItemInline(admin.TabularInline):
+    model = GuestOrderItem
+    extra = 0
+    readonly_fields = ('product', 'title', 'price', 'qty', 'get_line_total')
+    fields = ('product', 'title', 'price', 'qty', 'get_line_total')
+    can_delete = False
+
+    @admin.display(description='Сумма')
+    def get_line_total(self, obj):
+        return f'{obj.line_total:.2f} BYN'
+
+
+@admin.register(GuestOrder)
+class GuestOrderAdmin(admin.ModelAdmin):
+    list_display = (
+        'id', 'created_at', 'customer_name', 'customer_phone',
+        'delivery_type', 'payment_type', 'total', 'status',
+    )
+    list_filter = ('status', 'delivery_type', 'payment_type', 'created_at')
+    search_fields = ('customer_name', 'customer_phone', 'customer_email', 'delivery_address')
+    list_editable = ('status',)
+    readonly_fields = ('created_at', 'updated_at', 'subtotal', 'delivery_cost', 'total')
+    date_hierarchy = 'created_at'
+    inlines = [GuestOrderItemInline]
+    fieldsets = (
+        ('Статус', {
+            'fields': ('status', 'created_at', 'updated_at'),
+        }),
+        ('Покупатель', {
+            'fields': ('customer_name', 'customer_phone', 'customer_email'),
+        }),
+        ('Получатель', {
+            'fields': ('recipient_name', 'recipient_phone'),
+        }),
+        ('Доставка', {
+            'fields': ('delivery_type', 'pickup_store', 'delivery_address', 'delivery_date', 'delivery_time'),
+        }),
+        ('Оплата и итоги', {
+            'fields': ('payment_type', 'subtotal', 'delivery_cost', 'total'),
+        }),
+        ('Комментарий', {
+            'fields': ('comment',),
+        }),
+    )

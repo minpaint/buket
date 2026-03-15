@@ -1,303 +1,696 @@
 {% extends "shop/base.html" %}
-{% block title %}Каталог - Buket{% endblock %}
+{% block title %}{% if selected_category %}{{ selected_category }} — букеты в Минске | Buket.by{% elif selected_flower_tag %}Букеты из {{ selected_flower_tag }} — купить в Минске | Buket.by{% else %}Каталог букетов и цветов — Buket.by Минск{% endif %}{% endblock %}
+{% block meta_description %}{% if selected_category %}Купить {{ selected_category }} с доставкой по Минску. Большой выбор, свежие цветы, авторские букеты. Заказ онлайн на Buket.by.{% elif selected_flower_tag %}Букеты с {{ selected_flower_tag }} в Минске — доставка и самовывоз. Свежие цветы от Buket.by.{% else %}Каталог букетов и цветов с доставкой по Минску. Розы, тюльпаны, авторские композиции. Самовывоз или курьер. Заказ на Buket.by.{% endif %}{% endblock %}
+{% block og_title %}{% if selected_category %}{{ selected_category }} — Buket.by{% elif selected_flower_tag %}{{ selected_flower_tag }} — Buket.by{% else %}Каталог букетов — Buket.by{% endif %}{% endblock %}
+{% block og_description %}{% if selected_category %}Купить {{ selected_category }} с доставкой по Минску. Свежие цветы, авторские букеты на Buket.by.{% elif selected_flower_tag %}Букеты с {{ selected_flower_tag }} с доставкой по Минску.{% else %}Весь каталог свежих букетов и цветов с доставкой по Минску. Buket.by.{% endif %}{% endblock %}
+{% block schema_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type":"ListItem","position":1,"name":"Главная","item":"https://buket.by/"},
+    {"@type":"ListItem","position":2,"name":"{% if selected_category %}{{ selected_category|escapejs }}{% elif selected_flower_tag %}{{ selected_flower_tag|escapejs }}{% else %}Каталог{% endif %}","item":"https://buket.by{{ request.path }}"}
+  ]
+}
+</script>
+{% endblock %}
 {% block extra_styles %}
 <style>
-  .wrap{max-width:1280px;margin:0 auto;padding:20px}
-  .top{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-  .title{font-size:36px;color:#166534;margin:0}
-  /* ── Дропдаун-фильтры ── */
-  .filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px}
-  .dd-wrap{position:relative;display:inline-flex;align-items:center;gap:4px}
-  .dd-btn{
-    padding:7px 14px;border:1px solid #d1d5db;border-radius:999px;
-    background:#fff;color:#166534;font-size:14px;font-weight:500;
-    cursor:pointer;white-space:nowrap;transition:background .15s,border-color .15s;
+  /* ── Google Fonts ── */
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Jost:wght@300;400;500;600&display=swap');
+
+  /* ── Переменные ── */
+  :root{
+    --green:#166534;
+    --green-mid:#1a7a3c;
+    --green-light:#dcfce7;
+    --green-pale:#f0fdf4;
+    --ink:#1a1a1a;
+    --muted:#6b7280;
+    --border:#e5e7eb;
+    --filter-h:62px; /* высота прилипающей панели */
   }
-  .dd-btn:hover{border-color:#166534}
-  .dd-btn--active{background:#166534;color:#fff;border-color:#166534}
+
+  /* ── Обёртка ── */
+  .store-wrap{max-width:1300px;margin:0 auto;padding:28px 24px 48px}
+
+  /* ── Заголовок страницы ── */
+  .store-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:20px}
+  .store-title{
+    font-family:'Cormorant Garamond',Georgia,serif;
+    font-size:clamp(28px,4vw,44px);font-weight:600;
+    color:var(--green);margin:0;letter-spacing:-.01em;line-height:1.1;
+  }
+  .store-title em{font-style:italic;font-weight:400}
+  .store-count{font-family:'Jost',sans-serif;font-size:13px;color:var(--muted);letter-spacing:.04em}
+
+  /* ══════════════════════════════════════
+     STICKY FILTER BAR
+  ══════════════════════════════════════ */
+  .filter-sticky-wrap{
+    position:sticky;
+    top:0;
+    z-index:200;
+    background:#f0fdf4;
+    border-top:1px solid #bbf7d0;
+    border-bottom:2px solid #bbf7d0;
+    margin:0 -24px;
+    padding:0 24px;
+    overflow:visible;
+    transition:box-shadow .2s;
+  }
+  .filter-sticky-wrap.is-stuck{
+    box-shadow:0 4px 20px rgba(22,101,52,.13);
+  }
+  .filter-bar{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    height:var(--filter-h);
+    /* overflow-x:auto конфликтует с overflow-y:visible в браузерах —
+       используем отдельный скролл-контейнер внутри */
+    overflow:visible;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  /* Отдельный скролл-враппер внутри filter-bar (не обрезает дропдауны) */
+  .filter-bar-scroll{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    overflow-x:auto;
+    overflow-y:visible;
+    scrollbar-width:none;
+    flex:1;
+    /* padding чтобы дропдауны не обрезались по бокам при скролле */
+    padding-bottom:2px;
+  }
+  .filter-bar-scroll::-webkit-scrollbar{display:none}
+  .filter-bar::-webkit-scrollbar{display:none}
+
+  /* ── Метка «Фильтры» ── */
+  .filter-label{
+    font-family:'Jost',sans-serif;font-size:11px;font-weight:700;
+    color:var(--green);text-transform:uppercase;letter-spacing:.1em;
+    flex-shrink:0;white-space:nowrap;padding-right:4px;
+    display:inline-flex;align-items:center;gap:5px;
+  }
+  .filter-label svg{opacity:.75}
+
+  /* ── Разделитель ── */
+  .filter-sep{width:1px;height:28px;background:#bbf7d0;flex-shrink:0;margin:0 2px}
+
+  /* ── Кнопки дропдаунов ── */
+  .dd-wrap{position:relative;display:inline-flex;align-items:center;gap:3px;flex-shrink:0}
+
+  .dd-btn{
+    font-family:'Jost',sans-serif;
+    display:inline-flex;align-items:center;gap:6px;
+    padding:8px 16px;
+    border:1.5px solid #c6f0d4;
+    border-radius:999px;
+    background:#fff;
+    color:var(--ink);
+    font-size:13.5px;font-weight:500;
+    cursor:pointer;white-space:nowrap;
+    transition:border-color .18s,background .18s,color .18s,box-shadow .18s;
+    line-height:1;
+  }
+  .dd-btn .dd-chevron{
+    display:inline-block;width:14px;height:14px;flex-shrink:0;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-size:contain;background-repeat:no-repeat;
+    transition:transform .2s;
+  }
+  .dd-btn:hover{border-color:var(--green);color:var(--green)}
+  .dd-btn:hover .dd-chevron{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23166534' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")}
+  .dd-btn--active{
+    background:var(--green);color:#fff;border-color:var(--green);
+    box-shadow:0 2px 10px rgba(22,101,52,.25);
+  }
+  .dd-btn--active .dd-chevron{
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  }
+  .dd-btn[aria-expanded="true"] .dd-chevron{transform:rotate(180deg)}
+
+  /* ── Крестик сброса активного фильтра ── */
   .dd-clear{
     display:inline-flex;align-items:center;justify-content:center;
-    width:22px;height:22px;border-radius:50%;background:#dcfce7;
-    color:#166534;font-size:16px;line-height:1;text-decoration:none;font-weight:700;
+    width:20px;height:20px;border-radius:50%;
+    background:rgba(22,101,52,.12);color:var(--green);
+    font-size:14px;line-height:1;text-decoration:none;font-weight:700;
+    transition:background .15s,transform .15s;flex-shrink:0;
   }
-  .dd-clear:hover{background:#bbf7d0}
-  /* Панель — фиксированная ширина, overflow hidden для слайда */
+  .dd-clear:hover{background:rgba(22,101,52,.22);transform:scale(1.1)}
+
+  /* ══════════════════════════════════════
+     DROPDOWN PANELS — position:fixed
+     Позиционируются JS'ом через getBoundingClientRect()
+     Выходят за пределы любого stacking context
+  ══════════════════════════════════════ */
   .dd-panel{
-    display:none;position:absolute;top:calc(100% + 8px);left:0;
-    z-index:200;background:#fff;border:1px solid #e5e7eb;
-    border-radius:14px;overflow:hidden;
-    box-shadow:0 8px 28px rgba(0,0,0,.12);
-    width:280px;max-width:92vw;
+    display:none;
+    position:fixed;          /* ключ — fixed, не absolute */
+    z-index:9999;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 12px 40px rgba(0,0,0,.13),0 2px 8px rgba(0,0,0,.06);
+    width:290px;max-width:92vw;
   }
-  .dd-panel.open{display:block}
-  /* Две «страницы» внутри панели, сдвигаются JS'ом */
-  .dd-pages{display:flex;transition:transform .22s ease;width:200%}
+  .dd-panel.open{
+    display:block;
+    animation:dd-in .18s cubic-bezier(.22,.68,0,1.2) both;
+  }
+
+  .dd-panel-wide{
+    display:none;
+    position:fixed;          /* тоже fixed */
+    z-index:9999;
+    background:#fff;
+    border:1px solid var(--border);
+    border-radius:16px;
+    overflow:hidden;
+    box-shadow:0 12px 40px rgba(0,0,0,.13),0 2px 8px rgba(0,0,0,.06);
+    width:560px;max-width:92vw;
+  }
+  .dd-panel-wide.open{
+    display:block;
+    animation:dd-in .18s cubic-bezier(.22,.68,0,1.2) both;
+  }
+
+  @keyframes dd-in{
+    from{opacity:0;transform:translateY(-6px) scale(.97)}
+    to{opacity:1;transform:translateY(0) scale(1)}
+  }
+
+  /* Две «страницы» внутри панели */
+  .dd-pages{display:flex;transition:transform .22s cubic-bezier(.4,0,.2,1);width:200%}
   .dd-page{width:50%;flex-shrink:0}
   .dd-pages.on-sub{transform:translateX(-50%)}
-  /* Строки внутри страницы */
+
+  /* Строки */
   .dd-item{
     display:flex;align-items:center;justify-content:space-between;
-    padding:10px 16px;font-size:14px;color:#1f2937;
+    padding:10px 18px;
+    font-family:'Jost',sans-serif;font-size:14px;color:var(--ink);
     text-decoration:none;cursor:pointer;
     border:none;background:none;width:100%;text-align:left;
-    transition:background .12s;
+    transition:background .1s,color .1s;
+    gap:8px;
   }
-  .dd-item:hover{background:#f0fdf4}
-  .dd-item.active{background:#f0fdf4;color:#166534;font-weight:600}
+  .dd-item:hover{background:var(--green-pale);color:var(--green)}
+  .dd-item.active{
+    background:var(--green-pale);color:var(--green);font-weight:600;
+    position:relative;
+  }
+  .dd-item.active::before{
+    content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);
+    width:3px;height:60%;background:var(--green);border-radius:0 2px 2px 0;
+  }
+  .dd-item-count{font-size:11px;color:var(--muted);background:#f3f4f6;
+    padding:1px 6px;border-radius:999px;flex-shrink:0}
+
   .dd-item-back{
     display:flex;align-items:center;gap:8px;
-    padding:10px 16px;font-size:13px;font-weight:600;color:#166534;
+    padding:10px 18px;
+    font-family:'Jost',sans-serif;font-size:13px;font-weight:600;color:var(--green);
     cursor:pointer;border:none;background:#f9fafb;width:100%;text-align:left;
-    border-bottom:1px solid #f0fdf4;
+    border-bottom:1px solid var(--green-pale);
+    transition:background .1s;
   }
-  .dd-item-back:hover{background:#f0fdf4}
-  .dd-arrow{color:#9ca3af;font-size:16px}
+  .dd-item-back:hover{background:var(--green-pale)}
+
   .dd-parent-label{
-    padding:10px 16px 6px;font-size:11px;font-weight:700;
-    color:#9ca3af;text-transform:uppercase;letter-spacing:.07em;
-    border-bottom:1px solid #f0fdf4;
+    padding:10px 18px 6px;
+    font-family:'Jost',sans-serif;font-size:10px;font-weight:700;
+    color:var(--muted);text-transform:uppercase;letter-spacing:.1em;
+    border-bottom:1px solid var(--green-pale);
   }
-  /* Состав — широкая панель в 3 колонки */
-  .dd-panel-wide{
-    display:none;position:absolute;top:calc(100% + 8px);left:0;
-    z-index:200;background:#fff;border:1px solid #e5e7eb;
-    border-radius:14px;overflow:hidden;box-shadow:0 8px 28px rgba(0,0,0,.12);
-    width:600px;max-width:92vw;
+  .dd-arrow{color:#d1d5db;font-size:14px;transition:color .1s}
+  .dd-item:hover .dd-arrow{color:var(--green)}
+
+  .dd-wide-head{
+    padding:12px 18px 8px;
+    font-family:'Jost',sans-serif;font-size:10px;font-weight:700;
+    color:var(--muted);text-transform:uppercase;letter-spacing:.1em;
+    border-bottom:1px solid var(--green-pale);
   }
-  .dd-panel-wide.open{display:block}
   .dd-cols{
     display:grid;grid-template-columns:repeat(3,1fr);
-    max-height:360px;overflow-y:auto;
+    max-height:320px;overflow-y:auto;
+    padding:4px 0;
   }
   .dd-cols::-webkit-scrollbar{width:4px}
-  .dd-cols::-webkit-scrollbar-thumb{background:#d1fae5;border-radius:4px}
-  .chip{
-    padding:5px 12px;border:1px solid #d1d5db;border-radius:999px;
-    text-decoration:none;color:#166534;font-size:13px;white-space:nowrap;
-    transition:background .15s;
+  .dd-cols::-webkit-scrollbar-thumb{background:var(--green-light);border-radius:4px}
+
+  /* ── Кнопка «Сбросить всё» ── */
+  .filter-reset{
+    display:inline-flex;align-items:center;gap:5px;
+    font-family:'Jost',sans-serif;font-size:12px;color:var(--muted);
+    text-decoration:none;white-space:nowrap;flex-shrink:0;
+    padding:6px 10px;border-radius:999px;
+    border:1px solid transparent;
+    transition:color .15s,border-color .15s,background .15s;
   }
-  .chip:hover{background:#f0fdf4}
-  .chip.active{background:#166534;color:#fff;border-color:#166534}
-  .dd-reset{font-size:13px;color:#9ca3af;text-decoration:underline;cursor:pointer;margin-left:4px}
-  .dd-reset:hover{color:#6b7280}
-  /* ── Сетка товаров ── */
-  .grid{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+  .filter-reset:hover{color:var(--green);border-color:var(--green-light);background:var(--green-pale)}
+  .filter-reset svg{flex-shrink:0}
+
+  /* активный фильтр — чипик рядом с кнопкой reset */
+  .active-filters{
+    display:flex;align-items:center;gap:6px;flex-shrink:0;
+    margin-left:4px;
+  }
+  .af-chip{
+    display:inline-flex;align-items:center;gap:4px;
+    font-family:'Jost',sans-serif;font-size:12px;
+    color:var(--green);background:var(--green-pale);
+    border:1px solid rgba(22,101,52,.15);
+    border-radius:999px;padding:4px 10px;white-space:nowrap;
+    text-decoration:none;
+  }
+  .af-chip .af-x{font-size:14px;line-height:1;opacity:.7;transition:opacity .15s}
+  .af-chip:hover .af-x{opacity:1}
+
+  /* ══════════════════════════════════════
+     GRID ТОВАРОВ
+  ══════════════════════════════════════ */
+  .products-section{margin-top:20px}
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(230px,1fr));
+    gap:16px;
+  }
+
   .card{
-    border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;
+    border:1px solid var(--border);border-radius:14px;overflow:hidden;
     text-decoration:none;color:inherit;background:#fff;
-    transition:box-shadow .25s;display:flex;flex-direction:column;
+    transition:box-shadow .28s,transform .28s;
+    display:flex;flex-direction:column;
   }
-  .card:hover{box-shadow:0 12px 28px rgba(16,24,40,.13)}
+  .card:hover{
+    box-shadow:0 16px 40px rgba(22,101,52,.12),0 4px 12px rgba(0,0,0,.06);
+    transform:translateY(-2px);
+  }
   .media{position:relative;aspect-ratio:1/1;background:#f3f9f1;overflow:hidden;flex-shrink:0}
-  .media img{width:100%;height:100%;object-fit:cover;transition:transform .35s}
-  .card:hover .media img{transform:scale(1.04)}
+  .media img{width:100%;height:100%;object-fit:cover;transition:transform .4s cubic-bezier(.4,0,.2,1)}
+  .card:hover .media img{transform:scale(1.05)}
+
   .badge-preorder{
-    position:absolute;top:12px;left:0;
+    position:absolute;top:10px;left:0;
     background:linear-gradient(135deg,#166534,#22c55e);
-    color:#fff;font-size:11px;font-weight:700;letter-spacing:.06em;
+    color:#fff;font-family:'Jost',sans-serif;
+    font-size:10px;font-weight:700;letter-spacing:.07em;
     text-transform:uppercase;padding:4px 12px 4px 10px;
-    border-radius:0 999px 999px 0;box-shadow:0 2px 8px rgba(22,101,52,.35);
-    display:flex;align-items:center;gap:5px;line-height:1.4;
+    border-radius:0 999px 999px 0;box-shadow:0 2px 10px rgba(22,101,52,.35);
+    display:flex;align-items:center;gap:4px;line-height:1.4;
   }
-  .badge-preorder::before{content:'✿';font-size:10px;opacity:.85}
-  .pad{padding:10px 12px 12px;flex:1;display:flex;flex-direction:column;justify-content:space-between;}
-  .name{margin:0 0 8px;font-size:15px;font-weight:600;color:#1f2937;line-height:1.35;flex:1}
-  .price-tag{margin:0;display:inline-flex;align-items:baseline;gap:3px;flex-shrink:0;}
-  .price-amount{font-size:18px;font-weight:700;color:var(--PrimaryDark);line-height:1;}
-  .price-currency{font-size:11px;font-weight:600;color:var(--PrimaryDark);opacity:.7;letter-spacing:.04em;text-transform:uppercase;}
-  .price-row{display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:auto}
+  .badge-preorder::before{content:'✿';font-size:9px;opacity:.9}
+
+  .pad{padding:12px 14px 14px;flex:1;display:flex;flex-direction:column}
+  .name{
+    margin:0 0 10px;
+    font-family:'Jost',sans-serif;font-size:14.5px;font-weight:500;
+    color:var(--ink);line-height:1.4;flex:1;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .price-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto}
+  .price-tag{margin:0;display:inline-flex;align-items:baseline;gap:2px;flex-shrink:0}
+  .price-amount{
+    font-family:'Cormorant Garamond',Georgia,serif;
+    font-size:22px;font-weight:600;color:var(--green);line-height:1;
+  }
+  .price-currency{font-family:'Jost',sans-serif;font-size:11px;font-weight:600;color:var(--green);opacity:.65;letter-spacing:.05em;text-transform:uppercase}
+  .price-undef{font-family:'Jost',sans-serif;font-size:12.5px;color:var(--muted);font-style:italic}
+
   .add-btn{
-    flex-shrink:0;background:#166534;color:#fff;border:none;border-radius:999px;cursor:pointer;
-    font-size:12px;font-weight:700;padding:6px 12px;display:flex;align-items:center;
-    justify-content:center;transition:background .2s,transform .1s;
-    position:relative;z-index:2;white-space:nowrap;letter-spacing:.03em;
+    flex-shrink:0;background:var(--green);color:#fff;border:none;border-radius:999px;cursor:pointer;
+    font-family:'Jost',sans-serif;font-size:12px;font-weight:600;
+    padding:7px 14px;display:flex;align-items:center;justify-content:center;
+    transition:background .2s,transform .12s,box-shadow .2s;
+    white-space:nowrap;letter-spacing:.03em;
   }
-  .add-btn:hover{background:#14532d}
-  .add-btn:active{transform:scale(.97)}
+  .add-btn:hover{background:var(--green-mid);box-shadow:0 4px 14px rgba(22,101,52,.3)}
+  .add-btn:active{transform:scale(.96)}
   .add-btn.in-cart{background:#f97316}
   .add-btn.in-cart:hover{background:#ea6c10}
-  @media(max-width:900px){
-    .wrap{padding:14px 12px}.title{font-size:28px}
-    .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    .pad{padding:8px 10px 10px}.name{font-size:13px}
-    .price-amount{font-size:15px}.add-btn{font-size:11px;padding:5px 10px}
+
+  /* Сетка товаров должна быть ниже фильтра по stacking context */
+  .products-section{position:relative;z-index:1}
+
+  /* ── Пустое состояние ── */
+  .store-empty{
+    grid-column:1/-1;display:flex;flex-direction:column;align-items:center;
+    padding:80px 20px;text-align:center;gap:16px;
   }
-  @media(max-width:520px){.grid{grid-template-columns:1fr 1fr}}
-  .price-undef{font-size:13px;color:#6b7280;font-style:italic}
+  .store-empty svg{opacity:.25}
+  .store-empty p{font-family:'Jost',sans-serif;font-size:16px;color:var(--muted)}
+  .store-empty a{font-family:'Jost',sans-serif;font-size:14px;color:var(--green);text-decoration:underline}
+
+  /* ── Responsive ── */
+  @media(max-width:900px){
+    .store-wrap{padding:16px 14px 40px}
+    .filter-sticky-wrap{margin:0 -14px;padding:0 14px;overflow:visible}
+    .grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .pad{padding:10px 11px 12px}
+    .name{font-size:13px}
+    .price-amount{font-size:19px}
+    .add-btn{font-size:11px;padding:6px 10px}
+  }
+  @media(max-width:480px){
+    .filter-label{display:none}
+    .filter-sep:first-of-type{display:none}
+    .dd-panel-wide{width:calc(100vw - 28px);left:0}
+    .dd-cols{grid-template-columns:repeat(2,1fr)}
+  }
 </style>
 {% endblock %}
 {% block content %}
-<div class="wrap">
-  <div class="top">
-    <h1 class="title">Каталог</h1>
-    <a href="/" class="chip">На главную</a>
+<div class="store-wrap">
+
+  {# ── Заголовок ── #}
+  <div class="store-head">
+    <h1 class="store-title">
+      {% if selected_category %}
+        <em>{{ selected_category }}</em>
+      {% elif selected_flower_tag %}
+        Букеты <em>с {{ selected_flower_tag|lower }}</em>
+      {% else %}
+        Каталог <em>букетов</em>
+      {% endif %}
+    </h1>
+    <span class="store-count">{{ products|length }} товар{% if products|length == 1 %}{% elif products|length >= 2 and products|length <= 4 %}а{% else %}ов{% endif %}</span>
   </div>
 
-  <div class="filter-bar">
+  {# ══ STICKY FILTER BAR ══ #}
+  <div class="filter-sticky-wrap" id="filter-sticky-wrap">
+    <div class="filter-bar" role="toolbar" aria-label="Фильтры каталога">
+    <div class="filter-bar-scroll">
 
-    {# ── Дропдаун «Категория» (drill-down) ── #}
-    <div class="dd-wrap" id="dd-cat">
-      <button class="dd-btn {% if selected_category_slug %}dd-btn--active{% endif %}"
-              onclick="toggleDd('dd-cat')" type="button">
-        {% if selected_category %}{{ selected_category }}{% else %}Выберите категорию{% endif %} ▾
-      </button>
-      {% if selected_category_slug %}
-        <a class="dd-clear" href="{% if selected_flower_slug %}/store/flower/{{ selected_flower_slug }}/{% else %}/store/{% endif %}" title="Сбросить">×</a>
-      {% endif %}
+      <span class="filter-label">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Фильтры
+      </span>
+      <div class="filter-sep"></div>
 
-      <div class="dd-panel" id="dd-cat-panel">
-        <div class="dd-pages" id="dd-cat-pages">
+      {# ── Дропдаун «Категория» (drill-down) ── #}
+      <div class="dd-wrap" id="dd-cat">
+        <button class="dd-btn {% if selected_category_slug %}dd-btn--active{% endif %}"
+                onclick="toggleDd('dd-cat')" type="button"
+                aria-expanded="false" aria-haspopup="listbox">
+          {% if selected_category %}{{ selected_category }}{% else %}Категория{% endif %}
+          <span class="dd-chevron"></span>
+        </button>
+        {% if selected_category_slug %}
+          <a class="dd-clear"
+             href="{% if selected_flower_slug %}/store/flower/{{ selected_flower_slug }}/{% else %}/store/{% endif %}"
+             title="Убрать фильтр по категории" aria-label="Убрать категорию">×</a>
+        {% endif %}
 
-          {# Страница 1: топ-категории #}
-          <div class="dd-page" id="dd-cat-page1">
-            <a class="dd-item {% if not selected_category_slug %}active{% endif %}"
-               href="{% if selected_flower_slug %}/store/flower/{{ selected_flower_slug }}/{% else %}/store/{% endif %}">Все категории</a>
-            {% for c in categories %}
-              {% if c.children.all %}
-                {# Категория с детьми — кнопка drill-down #}
-                <button class="dd-item {% if selected_category_slug == c.slug %}active{% endif %}"
-                        onclick="drillInto('{{ c.slug|escapejs }}', '{{ c.name|escapejs }}')">
-                  {{ c.name }}<span class="dd-arrow">›</span>
-                </button>
-              {% else %}
-                {# Категория без детей — обычная ссылка #}
-                <a class="dd-item {% if selected_category_slug == c.slug %}active{% endif %}"
-                   href="/store/category/{{ c.slug }}/{% if selected_flower_slug %}?flower_tag_slug={{ selected_flower_slug }}{% endif %}">{{ c.name }}</a>
-              {% endif %}
+        <div class="dd-panel" id="dd-cat-panel" role="listbox">
+          <div class="dd-pages" id="dd-cat-pages">
+
+            {# Страница 1: топ-категории #}
+            <div class="dd-page" id="dd-cat-page1">
+              <a class="dd-item {% if not selected_category_slug %}active{% endif %}"
+                 href="{% if selected_flower_slug %}/store/flower/{{ selected_flower_slug }}/{% else %}/store/{% endif %}">
+                Все категории
+              </a>
+              {% for c in categories %}
+                {% if c.children.all %}
+                  <button class="dd-item {% if selected_category_slug == c.slug %}active{% endif %}"
+                          onclick="drillInto('{{ c.slug|escapejs }}', '{{ c.name|escapejs }}')">
+                    {{ c.name }}<span class="dd-arrow">›</span>
+                  </button>
+                {% else %}
+                  <a class="dd-item {% if selected_category_slug == c.slug %}active{% endif %}"
+                     href="/store/category/{{ c.slug }}/{% if selected_flower_slug %}?flower_tag_slug={{ selected_flower_slug }}{% endif %}">
+                    {{ c.name }}
+                  </a>
+                {% endif %}
+              {% endfor %}
+            </div>
+
+            {# Страница 2: подкатегории (заполняется JS) #}
+            <div class="dd-page" id="dd-cat-page2">
+              <button class="dd-item-back" onclick="drillBack()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                Назад
+              </button>
+              <div class="dd-parent-label" id="dd-parent-label"></div>
+              <div id="dd-children-list"></div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {# ── Дропдаун «Букеты по цветам» ── #}
+      <div class="dd-wrap" id="dd-flower">
+        <button class="dd-btn {% if selected_flower_slug %}dd-btn--active{% endif %}"
+                onclick="toggleDd('dd-flower')" type="button"
+                aria-expanded="false" aria-haspopup="listbox">
+          {% if selected_flower_tag %}{{ selected_flower_tag }}{% else %}Состав букета{% endif %}
+          <span class="dd-chevron"></span>
+        </button>
+        {% if selected_flower_slug %}
+          <a class="dd-clear"
+             href="{% if selected_category_slug %}/store/category/{{ selected_category_slug }}/{% else %}/store/{% endif %}"
+             title="Убрать фильтр по цветку" aria-label="Убрать цветок">×</a>
+        {% endif %}
+
+        <div class="dd-panel-wide" id="dd-flower-panel" role="listbox">
+          <div class="dd-wide-head">Выберите цветы</div>
+          <div class="dd-cols">
+            <a class="dd-item {% if not selected_flower_slug %}active{% endif %}"
+               href="{% if selected_category_slug %}/store/category/{{ selected_category_slug }}/{% else %}/store/{% endif %}">
+              Все цветы
+            </a>
+            {% for t in flower_tags %}
+              <a class="dd-item {% if selected_flower_slug == t.slug %}active{% endif %}"
+                 href="{% if selected_category_slug %}/store/category/{{ selected_category_slug }}/?flower_tag_slug={{ t.slug }}{% else %}/store/flower/{{ t.slug }}/{% endif %}">
+                {{ t.name }}
+              </a>
             {% endfor %}
           </div>
-
-          {# Страница 2: подкатегории (заполняется JS) #}
-          <div class="dd-page" id="dd-cat-page2">
-            <button class="dd-item-back" onclick="drillBack()">‹ Назад</button>
-            <div class="dd-parent-label" id="dd-parent-label"></div>
-            <div id="dd-children-list"></div>
-          </div>
-
         </div>
       </div>
-    </div>
 
-    {# ── Дропдаун «Букеты по цветам» ── #}
-    <div class="dd-wrap" id="dd-flower">
-      <button class="dd-btn {% if selected_flower_slug %}dd-btn--active{% endif %}"
-              onclick="toggleDd('dd-flower')" type="button">
-        {% if selected_flower_tag %}{{ selected_flower_tag }}{% else %}Букеты по цветам{% endif %} ▾
-      </button>
-      {% if selected_flower_slug %}
-        <a class="dd-clear" href="{% if selected_category_slug %}/store/category/{{ selected_category_slug }}/{% else %}/store/{% endif %}" title="Сбросить">×</a>
+      {# ── Активные фильтры + сброс ── #}
+      {% if selected_category_slug or selected_flower_slug %}
+        <div class="active-filters">
+          <a href="/store/" class="filter-reset" title="Сбросить все фильтры">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Сбросить
+          </a>
+        </div>
       {% endif %}
-      <div class="dd-panel-wide" id="dd-flower-panel">
-        <div class="dd-cols">
-          <a class="dd-item {% if not selected_flower_slug %}active{% endif %}"
-             href="{% if selected_category_slug %}/store/category/{{ selected_category_slug }}/{% else %}/store/{% endif %}">Все цветы</a>
-          {% for t in flower_tags %}
-            <a class="dd-item {% if selected_flower_slug == t.slug %}active{% endif %}"
-               href="{% if selected_category_slug %}/store/category/{{ selected_category_slug }}/?flower_tag_slug={{ t.slug }}{% else %}/store/flower/{{ t.slug }}/{% endif %}">{{ t.name }}</a>
-          {% endfor %}
-        </div>
-      </div>
-    </div>
 
-    {% if selected_category_slug or selected_flower_slug %}
-      <a href="/store/" class="dd-reset">Сбросить всё</a>
-    {% endif %}
+    </div>{# /filter-bar-scroll #}
+    </div>{# /filter-bar (overflow:visible wrapper) #}
+  </div>{# /filter-sticky-wrap #}
 
-  </div>
-
-  <div class="grid">
-    {% for p in products %}
-      <a class="card" href="/store/{{ p.slug }}/">
-        <div class="media">
-          <img src="{{ p.image_url }}" alt="{{ p.title }}">
-          <span class="badge-preorder">Предзаказ</span>
-        </div>
-        <div class="pad">
-          <p class="name">{{ p.title }}</p>
-          <div class="price-row">
-            {% if p.price %}
-              <p class="price-tag" style="margin:0">
-                <span class="price-amount">{{ p.price|floatformat:"-2" }}</span>
-                <span class="price-currency">BYN</span>
-              </p>
-            {% else %}
-              <span class="price-undef">Цену уточняйте</span>
-            {% endif %}
-            <span class="add-btn">Купить</span>
+  {# ── Сетка товаров ── #}
+  <div class="products-section">
+    <div class="grid" id="products-grid">
+      {% for p in products %}
+        <a class="card" href="/store/{{ p.slug }}/">
+          <div class="media">
+            <img src="{{ p.image_url }}" alt="{{ p.title }}" loading="lazy">
+            <span class="badge-preorder">Предзаказ</span>
           </div>
+          <div class="pad">
+            <p class="name">{{ p.title }}</p>
+            <div class="price-row">
+              {% if p.price %}
+                <p class="price-tag">
+                  <span class="price-amount">{{ p.price|floatformat:"-2" }}</span>
+                  <span class="price-currency">BYN</span>
+                </p>
+              {% else %}
+                <span class="price-undef">Цену уточняйте</span>
+              {% endif %}
+              <span class="add-btn">Купить</span>
+            </div>
+          </div>
+        </a>
+      {% empty %}
+        <div class="store-empty">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="1.2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <p>Товары не найдены по выбранным фильтрам</p>
+          <a href="/store/">Посмотреть весь каталог</a>
         </div>
-      </a>
-    {% empty %}
-      <div class="muted">Товары не найдены</div>
-    {% endfor %}
+      {% endfor %}
+    </div>
   </div>
+
 </div>
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-// Данные категорий из Django (только с детьми): ключ = slug родителя
+(function(){
+
+/* ── Данные категорий из Django ── */
 var CAT_CHILDREN = {
-  {% for c in categories %}{% if c.children.all %}'{{ c.slug|escapejs }}': {'label':'{{ c.name|escapejs }}','children':[{% for ch in c.children.all %}{'name':'{{ ch.name|escapejs }}','slug':'{{ ch.slug|escapejs }}','url':'/store/category/{{ ch.slug }}/{% if selected_flower_slug %}?flower_tag_slug={{ selected_flower_slug }}{% endif %}'},{% endfor %}]},{% endif %}{% endfor %}
+  {% for c in categories %}{% if c.children.all %}'{{ c.slug|escapejs }}':{'label':'{{ c.name|escapejs }}','children':[{% for ch in c.children.all %}{'name':'{{ ch.name|escapejs }}','slug':'{{ ch.slug|escapejs }}','url':'/store/category/{{ ch.slug }}/{% if selected_flower_slug %}?flower_tag_slug={{ selected_flower_slug }}{% endif %}'},{% endfor %}]},{% endif %}{% endfor %}
 };
 var SELECTED_CAT_SLUG = '{{ selected_category_slug|escapejs }}';
-var FLOWER_SLUG_PARAM = '{% if selected_flower_slug %}?flower_tag_slug={{ selected_flower_slug }}{% endif %}';
+var FLOWER_SLUG_PARAM  = '{% if selected_flower_slug %}?flower_tag_slug={{ selected_flower_slug }}{% endif %}';
 
+var catPanel    = document.getElementById('dd-cat-panel');
+var flowerPanel = document.getElementById('dd-flower-panel');
+var catBtn      = document.querySelector('#dd-cat .dd-btn');
+var flowerBtn   = document.querySelector('#dd-flower .dd-btn');
+
+/* ══════════════════════════════════════
+   TELEPORT: перемещаем панели в <body> ПОСЛЕДНИМИ
+   — после cart-drawer (z-index:201, transform) который
+   создаёт свой stacking context и перекрывал панели.
+   В DOM позиция = z-index внутри одного stacking context.
+══════════════════════════════════════ */
+function teleportPanels() {
+  document.body.appendChild(catPanel);
+  document.body.appendChild(flowerPanel);
+}
+/* Вставляем после полной загрузки DOM — гарантированно в конец */
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', teleportPanels);
+} else {
+  teleportPanels();
+}
+
+/* ── Позиционировать панель под кнопкой ── */
+/* Вызывается после rAF — когда панель уже видима и имеет реальные размеры */
+function positionPanel(panel, btn) {
+  var r = btn.getBoundingClientRect();
+  var pw = panel.offsetWidth;
+  var top  = r.bottom + 8;
+  var left = r.left;
+  if (left + pw > window.innerWidth - 8) left = window.innerWidth - pw - 8;
+  if (left < 8) left = 8;
+  panel.style.top  = top  + 'px';
+  panel.style.left = left + 'px';
+}
+
+/* ── Открыть / закрыть дропдаун ── */
 function toggleDd(id) {
-  var catPanel    = document.getElementById('dd-cat-panel');
-  var flowerPanel = document.getElementById('dd-flower-panel');
   if (id === 'dd-cat') {
-    var isOpen = catPanel.classList.contains('open');
-    catPanel.classList.toggle('open', !isOpen);
-    flowerPanel.classList.remove('open');
-    // Если выбранная категория — подкатегория, сразу раскрыть drill на уровень 2
-    if (!isOpen && SELECTED_CAT_SLUG && CAT_CHILDREN[SELECTED_CAT_SLUG] === undefined) {
-      for (var parentSlug in CAT_CHILDREN) {
-        var found = CAT_CHILDREN[parentSlug].children.find(function(ch){ return ch.slug === SELECTED_CAT_SLUG; });
-        if (found) { drillInto(parentSlug, CAT_CHILDREN[parentSlug].label); break; }
+    var willOpen = !catPanel.classList.contains('open');
+    closeAll();
+    if (willOpen) {
+      /* Сначала показываем (display:block), потом в rAF считаем размеры */
+      catPanel.classList.add('open');
+      requestAnimationFrame(function(){ positionPanel(catPanel, catBtn); });
+      catBtn && catBtn.setAttribute('aria-expanded','true');
+      if (SELECTED_CAT_SLUG && !CAT_CHILDREN[SELECTED_CAT_SLUG]) {
+        for (var ps in CAT_CHILDREN) {
+          if (CAT_CHILDREN[ps].children.find(function(c){return c.slug===SELECTED_CAT_SLUG;})) {
+            drillInto(ps, CAT_CHILDREN[ps].label); break;
+          }
+        }
       }
     }
   } else {
-    var isOpen2 = flowerPanel.classList.contains('open');
-    flowerPanel.classList.toggle('open', !isOpen2);
-    catPanel.classList.remove('open');
-    document.getElementById('dd-cat-pages').classList.remove('on-sub');
+    var willOpen2 = !flowerPanel.classList.contains('open');
+    closeAll();
+    if (willOpen2) {
+      flowerPanel.classList.add('open');
+      requestAnimationFrame(function(){ positionPanel(flowerPanel, flowerBtn); });
+      flowerBtn && flowerBtn.setAttribute('aria-expanded','true');
+    }
   }
 }
 
+function closeAll() {
+  catPanel.classList.remove('open');
+  flowerPanel.classList.remove('open');
+  catBtn    && catBtn.setAttribute('aria-expanded','false');
+  flowerBtn && flowerBtn.setAttribute('aria-expanded','false');
+  document.getElementById('dd-cat-pages').classList.remove('on-sub');
+}
+
+/* ── Drill-down в подкатегории ── */
 function drillInto(parentSlug, parentLabel) {
   var entry = CAT_CHILDREN[parentSlug];
   if (!entry) return;
   document.getElementById('dd-parent-label').textContent = parentLabel || entry.label;
   var list = document.getElementById('dd-children-list');
   list.innerHTML = '';
-  // Ссылка «Все» — на саму родительскую категорию
-  var allLink = document.createElement('a');
-  allLink.className = 'dd-item' + (SELECTED_CAT_SLUG === parentSlug ? ' active' : '');
-  allLink.href = '/store/category/' + parentSlug + '/' + FLOWER_SLUG_PARAM;
-  allLink.textContent = 'Все';
-  list.appendChild(allLink);
-  entry.children.forEach(function(ch) {
+  var allEl = document.createElement('a');
+  allEl.className = 'dd-item' + (SELECTED_CAT_SLUG===parentSlug ? ' active':'');
+  allEl.href = '/store/category/'+parentSlug+'/'+FLOWER_SLUG_PARAM;
+  allEl.textContent = 'Все';
+  list.appendChild(allEl);
+  entry.children.forEach(function(ch){
     var a = document.createElement('a');
-    a.className = 'dd-item' + (SELECTED_CAT_SLUG === ch.slug ? ' active' : '');
+    a.className = 'dd-item'+(SELECTED_CAT_SLUG===ch.slug?' active':'');
     a.href = ch.url;
     a.textContent = ch.name;
     list.appendChild(a);
   });
   document.getElementById('dd-cat-pages').classList.add('on-sub');
+  /* перепозиционировать после изменения высоты */
+  requestAnimationFrame(function(){ positionPanel(catPanel, catBtn); });
 }
 
 function drillBack() {
   document.getElementById('dd-cat-pages').classList.remove('on-sub');
+  requestAnimationFrame(function(){ positionPanel(catPanel, catBtn); });
 }
 
-// Закрыть при клике вне
-document.addEventListener('click', function(e) {
-  if (!e.target.closest('.dd-wrap')) {
-    document.getElementById('dd-cat-panel').classList.remove('open');
-    document.getElementById('dd-flower-panel').classList.remove('open');
-    document.getElementById('dd-cat-pages').classList.remove('on-sub');
-  }
+/* ── Закрыть при клике вне ── */
+document.addEventListener('click', function(e){
+  if (!e.target.closest('.dd-wrap') &&
+      e.target !== catPanel && !catPanel.contains(e.target) &&
+      e.target !== flowerPanel && !flowerPanel.contains(e.target)) closeAll();
 });
+document.addEventListener('keydown', function(e){
+  if (e.key==='Escape') closeAll();
+});
+/* ── При скролле/ресайзе перепозиционируем открытую панель ── */
+function repositionOpen() {
+  if (catPanel.classList.contains('open'))    positionPanel(catPanel, catBtn);
+  if (flowerPanel.classList.contains('open')) positionPanel(flowerPanel, flowerBtn);
+}
+window.addEventListener('scroll', repositionOpen, {passive:true});
+window.addEventListener('resize', repositionOpen);
+
+/* ══════════════════════════════════════
+   STICKY FILTER BAR — top под header
+══════════════════════════════════════ */
+var filterWrap = document.getElementById('filter-sticky-wrap');
+
+function updateStickyTop() {
+  var header = document.querySelector('.site-header');
+  if (!header || !filterWrap) return;
+  filterWrap.style.top = header.getBoundingClientRect().height + 'px';
+}
+
+function initStickyObserver() {
+  if (!filterWrap) return;
+  updateStickyTop();
+  var sentinel = document.createElement('div');
+  sentinel.style.cssText = 'height:1px;pointer-events:none;margin-bottom:-1px';
+  filterWrap.parentNode.insertBefore(sentinel, filterWrap);
+  new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      filterWrap.classList.toggle('is-stuck', !en.isIntersecting);
+    });
+  }, {threshold:0}).observe(sentinel);
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  initStickyObserver();
+  window.addEventListener('resize', updateStickyTop);
+});
+
+window.toggleDd  = toggleDd;
+window.drillInto = drillInto;
+window.drillBack = drillBack;
+
+})();
 </script>
 {% endblock %}

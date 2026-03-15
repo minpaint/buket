@@ -19,7 +19,7 @@ from urllib.parse import quote, urlsplit
 import json
 from datetime import date
 from rest_framework_simplejwt.views import TokenObtainPairView
-from .models import Product, Discount, Order, Category, Review, HeroBanner, Store, StoreManager, FlowerTag, ShowcaseItem, Ticker
+from .models import Product, Discount, Order, Category, Review, HeroBanner, Store, StoreManager, FlowerTag, ShowcaseItem, Ticker, SiteSettings, GuestOrder, GuestOrderItem
 from .serializers import (ProductSerializer, DiscountSerializer, OrderSerializer, CategorySerializer
 , TokenObtainPairSerializer, RegisterSerializer, UserSerializer, ReviewSerializer, PublicReviewCreateSerializer,
 HeroBannerSerializer, StoreSerializer, StoreManagerSerializer, BotProductCreateSerializer, FlowerTagSerializer)
@@ -382,6 +382,36 @@ def contacts_page(request):
     return render(request, "shop/contacts.html", {"stores": stores})
 
 
+def robots_txt(request):
+    return render(request, "shop/robots.txt", content_type="text/plain; charset=utf-8")
+
+
+def sitemap_xml(request):
+    from django.http import HttpResponse
+    categories = Category.objects.filter(parent__isnull=True).prefetch_related('children').order_by('sort_order', 'name')
+    flower_tags = FlowerTag.objects.filter(slug__gt='').order_by('sort_order', 'name')
+    products = Product.objects.filter(is_published=True, slug__gt='').order_by('-id')
+    ctx = {
+        'categories': categories,
+        'flower_tags': flower_tags,
+        'products': products,
+    }
+    content = render(request, "shop/sitemap.xml", ctx).content
+    return HttpResponse(content, content_type="application/xml; charset=utf-8")
+
+
+def error_404(request, exception=None):
+    """Кастомная страница 404."""
+    from django.shortcuts import render as _render
+    return _render(request, '404.html', status=404)
+
+
+def error_500(request):
+    """Кастомная страница 500."""
+    from django.shortcuts import render as _render
+    return _render(request, '500.html', status=500)
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def api_root(request, format=None):
@@ -598,8 +628,15 @@ def _product_image_url(product, request):
 def cart_page(request):
     """Страница корзины."""
     cart = _get_cart(request)
+    settings_obj = SiteSettings.get()
+    stores = Store.objects.filter(is_active=True).order_by('sort_order', 'name')
+
     if not cart:
-        return render(request, 'shop/cart.html', {'items': [], 'total': 0})
+        return render(request, 'shop/cart.html', {
+            'items': [], 'total': 0,
+            'settings': settings_obj,
+            'stores': stores,
+        })
 
     product_ids = [int(k) for k in cart.keys()]
     products = Product.objects.filter(id__in=product_ids, is_published=True).select_related('category')
@@ -622,7 +659,17 @@ def cart_page(request):
             'line_total': line_total,
         })
 
-    return render(request, 'shop/cart.html', {'items': items, 'total': total})
+    import decimal
+    delivery_cost = settings_obj.delivery_cost if total < settings_obj.delivery_free_from else decimal.Decimal('0')
+
+    return render(request, 'shop/cart.html', {
+        'items': items,
+        'total': total,
+        'delivery_cost': delivery_cost,
+        'order_total': total + delivery_cost,
+        'settings': settings_obj,
+        'stores': stores,
+    })
 
 
 @require_POST
@@ -695,16 +742,216 @@ def cart_drawer(request):
     return JsonResponse({'items': items, 'cart_count': sum(cart.values())})
 
 
+def _send_order_notifications(order_pk, notification_text, order_items_data,
+                               subtotal, delivery_cost, total,
+                               delivery_type, delivery_address, pretty_datetime,
+                               pickup_store_name, pickup_store_address,
+                               recipient_name, recipient_phone, comment,
+                               payment_type, name, phone, email):
+    """
+    Отправляет email и Telegram-уведомление о заказе.
+    Вызывается в отдельном потоке, чтобы не блокировать ответ покупателю.
+    """
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
+
+    settings_obj = SiteSettings.get()
+    order = GuestOrder.objects.filter(pk=order_pk).first()
+    if not order:
+        return
+
+    # Email
+    if settings_obj.notification_email:
+        try:
+            import smtplib
+            import urllib.request as _urlreq
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText as _MIMEText
+            from email.mime.image import MIMEImage
+            from email.header import Header
+
+            _host = getattr(settings, 'EMAIL_HOST', 'smtp.yandex.ru')
+            _port = getattr(settings, 'EMAIL_PORT', 587)
+            _user = getattr(settings, 'EMAIL_HOST_USER', '')
+            _pwd  = getattr(settings, 'EMAIL_HOST_PASSWORD', '')
+            _from = getattr(settings, 'DEFAULT_FROM_EMAIL', _user)
+            _to   = settings_obj.notification_email
+
+            pay_label = 'Наличные' if payment_type == 'cash' else 'Картой online'
+            html_rows = ''
+            inline_images = []
+            for idx, item_data in enumerate(order_items_data):
+                p = item_data['product']
+                article_str = p.article or '—'
+                cid = f'img{idx}'
+                img_path = None
+                img_url_str = None
+                if p.uploaded_image:
+                    try:
+                        img_path = p.uploaded_image.path
+                    except Exception:
+                        pass
+                if not img_path and p.image:
+                    img_url_str = p.image if p.image.startswith('http') else None
+                img_tag = f'<img src="cid:{cid}" style="width:80px;height:80px;object-fit:cover;border-radius:4px;">'
+                html_rows += f'''<tr>
+  <td style="padding:8px;border-bottom:1px solid #eee;vertical-align:top;">{img_tag}</td>
+  <td style="padding:8px;border-bottom:1px solid #eee;vertical-align:top;">
+    <b>{item_data["title"]}</b><br>
+    <span style="color:#888;font-size:12px;">Арт.: {article_str}</span>
+  </td>
+  <td style="padding:8px;border-bottom:1px solid #eee;text-align:center;vertical-align:top;">{item_data["qty"]}</td>
+  <td style="padding:8px;border-bottom:1px solid #eee;text-align:right;vertical-align:top;">{item_data["price"] * item_data["qty"]:.2f} BYN</td>
+</tr>'''
+                inline_images.append({'cid': cid, 'path': img_path, 'url': img_url_str})
+
+            delivery_row = ''
+            if delivery_type == 'delivery':
+                delivery_row = f'<tr><td colspan="3" style="text-align:right;padding:4px 8px;color:#555;">Доставка:</td><td style="text-align:right;padding:4px 8px;">{delivery_cost:.2f} BYN</td></tr>'
+
+            if delivery_type == 'delivery':
+                delivery_info = f'🚚 Доставка по адресу: <b>{delivery_address}</b>'
+                if pretty_datetime:
+                    delivery_info += f'<br>🕐 {pretty_datetime}'
+            else:
+                delivery_info = f'🏪 Самовывоз: <b>{pickup_store_name}</b>'
+                if pickup_store_address:
+                    delivery_info += f'<br><span style="color:#555;font-size:12px;">{pickup_store_address}</span>'
+
+            recipient_info = ''
+            if recipient_name or recipient_phone:
+                recipient_info = f'<p>💐 Получатель: <b>{recipient_name} {recipient_phone}</b></p>'
+
+            comment_info = f'<p>💬 <i>{comment}</i></p>' if comment else ''
+
+            html_body = f'''<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
+<h2 style="color:#2a5db0;border-bottom:2px solid #c8d8f0;padding-bottom:8px;">🌸 Новый заказ #{order.pk}</h2>
+<p>👤 <b>{name}</b> &nbsp;|&nbsp; 📞 {phone}{"&nbsp;|&nbsp;📧 "+email if email else ""}</p>
+<p>{delivery_info}</p>
+{recipient_info}
+<p>💳 Оплата: <b>{pay_label}</b></p>
+{comment_info}
+<table style="width:100%;border-collapse:collapse;margin-top:12px;">
+  <thead>
+    <tr style="background:#f0f5ff;">
+      <th style="padding:8px;text-align:left;">Фото</th>
+      <th style="padding:8px;text-align:left;">Товар</th>
+      <th style="padding:8px;text-align:center;">Кол-во</th>
+      <th style="padding:8px;text-align:right;">Сумма</th>
+    </tr>
+  </thead>
+  <tbody>{html_rows}</tbody>
+  <tfoot>
+    <tr><td colspan="3" style="text-align:right;padding:4px 8px;color:#555;">Товары:</td><td style="text-align:right;padding:4px 8px;">{subtotal:.2f} BYN</td></tr>
+    {delivery_row}
+    <tr style="font-weight:bold;font-size:15px;border-top:2px solid #ccc;">
+      <td colspan="3" style="text-align:right;padding:8px;">Итого к оплате:</td>
+      <td style="text-align:right;padding:8px;">{total:.2f} BYN</td>
+    </tr>
+  </tfoot>
+</table>
+</body></html>'''
+
+            msg = MIMEMultipart('related')
+            msg['Subject'] = Header(f'Новый заказ #{order.pk} — {name}', 'utf-8')
+            msg['From'] = _from
+            msg['To'] = _to
+            alt = MIMEMultipart('alternative')
+            alt.attach(_MIMEText(notification_text, 'plain', 'utf-8'))
+            alt.attach(_MIMEText(html_body, 'html', 'utf-8'))
+            msg.attach(alt)
+
+            for img_info in inline_images:
+                img_data = None
+                if img_info['path']:
+                    try:
+                        with open(img_info['path'], 'rb') as f:
+                            img_data = f.read()
+                    except Exception:
+                        pass
+                if not img_data and img_info['url']:
+                    try:
+                        with _urlreq.urlopen(img_info['url'], timeout=5) as r:
+                            img_data = r.read()
+                    except Exception:
+                        pass
+                if img_data:
+                    mime_img = MIMEImage(img_data)
+                    mime_img.add_header('Content-ID', f'<{img_info["cid"]}>')
+                    mime_img.add_header('Content-Disposition', 'inline')
+                    msg.attach(mime_img)
+
+            use_ssl = getattr(settings, 'EMAIL_USE_SSL', False)
+            if use_ssl:
+                import ssl as _ssl
+                with smtplib.SMTP_SSL(_host, _port, context=_ssl.create_default_context()) as srv:
+                    if _user: srv.login(_user, _pwd)
+                    srv.sendmail(_from, [_to], msg.as_string())
+            else:
+                with smtplib.SMTP(_host, _port) as srv:
+                    srv.ehlo(); srv.starttls(); srv.ehlo()
+                    if _user: srv.login(_user, _pwd)
+                    srv.sendmail(_from, [_to], msg.as_string())
+        except Exception as e:
+            _log.error('Email send error for order #%s: %s', order_pk, e)
+
+    # Telegram
+    tg_token = settings_obj.telegram_notify_token
+    tg_chat = settings_obj.telegram_notify_chat_id
+    if tg_token and tg_chat:
+        try:
+            import urllib.request
+            import urllib.parse
+            tg_url = f'https://api.telegram.org/bot{tg_token}/sendMessage'
+            tg_data = urllib.parse.urlencode({
+                'chat_id': tg_chat,
+                'text': notification_text,
+                'parse_mode': '',
+            }).encode()
+            req_tg = urllib.request.Request(tg_url, data=tg_data, method='POST')
+            urllib.request.urlopen(req_tg, timeout=5)
+        except Exception as e:
+            _log.error('Telegram send error for order #%s: %s', order_pk, e)
+
+
 @require_POST
 def cart_checkout(request):
-    """Оформить заказ: сохранить контакт в сессии, очистить корзину."""
+    """Оформить заказ: сохранить в БД, отправить email и Telegram."""
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
         return JsonResponse({'ok': False, 'error': 'Ошибка данных'}, status=400)
 
-    name = (data.get('name') or '').strip()
-    phone = (data.get('phone') or '').strip()
+    name = (data.get('customer_name') or '').strip()
+    phone = (data.get('customer_phone') or '').strip()
+    email = (data.get('customer_email') or '').strip()
+    recipient_name = (data.get('recipient_name') or '').strip()
+    recipient_phone = (data.get('recipient_phone') or '').strip()
+    delivery_type = (data.get('delivery_type') or 'delivery').strip()
+    pickup_store_id = data.get('pickup_store_id') or None
+    delivery_address = (data.get('delivery_address') or '').strip()
+    delivery_date = (data.get('delivery_date') or '').strip()
+    delivery_time = (data.get('delivery_time') or '').strip()
+
+    # Красивый формат даты и времени для уведомлений
+    def _fmt_datetime(date_str, time_str):
+        """'2025-12-25' + '14:00' → '25 декабря 2025, 14:00'"""
+        months_ru = ['января','февраля','марта','апреля','мая','июня',
+                     'июля','августа','сентября','октября','ноября','декабря']
+        result = ''
+        if date_str:
+            try:
+                from datetime import datetime as _dt
+                d = _dt.strptime(date_str, '%Y-%m-%d')
+                result = f'{d.day} {months_ru[d.month - 1]} {d.year}'
+            except Exception:
+                result = date_str
+        if time_str:
+            result = (result + ', ' + time_str) if result else time_str
+        return result
+
+    pretty_datetime = _fmt_datetime(delivery_date, delivery_time)
+    payment_type = (data.get('payment_type') or 'cash').strip()
     comment = (data.get('comment') or '').strip()
 
     if not name or not phone:
@@ -714,18 +961,128 @@ def cart_checkout(request):
     if not cart:
         return JsonResponse({'ok': False, 'error': 'Корзина пуста'}, status=400)
 
-    # Сохраняем заказ в сессии
-    request.session['last_order'] = {
-        'name': name,
-        'phone': phone,
-        'comment': comment,
-        'items': cart,
+    # Загружаем товары из БД
+    product_ids = [int(k) for k in cart.keys()]
+    products_map = {
+        p.id: p
+        for p in Product.objects.filter(id__in=product_ids, is_published=True)
     }
+
+    import decimal
+    settings_obj = SiteSettings.get()
+
+    subtotal = decimal.Decimal('0')
+    order_items_data = []
+    for pid_str, qty in cart.items():
+        pid = int(pid_str)
+        product = products_map.get(pid)
+        if not product or qty <= 0:
+            continue
+        price = product.price or decimal.Decimal('0')
+        subtotal += price * qty
+        order_items_data.append({'product': product, 'title': product.title, 'price': price, 'qty': qty})
+
+    if not order_items_data:
+        return JsonResponse({'ok': False, 'error': 'Корзина пуста'}, status=400)
+
+    # Стоимость доставки
+    if delivery_type == 'delivery':
+        delivery_cost = settings_obj.delivery_cost if subtotal < settings_obj.delivery_free_from else decimal.Decimal('0')
+    else:
+        delivery_cost = decimal.Decimal('0')
+
+    total = subtotal + delivery_cost
+
+    # Магазин самовывоза
+    pickup_store = None
+    if delivery_type == 'pickup' and pickup_store_id:
+        try:
+            pickup_store = Store.objects.get(id=int(pickup_store_id), is_active=True)
+        except (Store.DoesNotExist, ValueError):
+            pass
+
+    # Сохраняем в БД атомарно — если что-то пойдёт не так, откатится всё
+    from django.db import transaction as _transaction
+    with _transaction.atomic():
+        order = GuestOrder.objects.create(
+            customer_name=name,
+            customer_phone=phone,
+            customer_email=email,
+            recipient_name=recipient_name,
+            recipient_phone=recipient_phone,
+            delivery_type=delivery_type,
+            pickup_store=pickup_store,
+            delivery_address=delivery_address,
+            delivery_date=delivery_date,
+            delivery_time=delivery_time,
+            payment_type=payment_type,
+            subtotal=subtotal,
+            delivery_cost=delivery_cost,
+            total=total,
+            comment=comment,
+        )
+        for item_data in order_items_data:
+            GuestOrderItem.objects.create(
+                order=order,
+                product=item_data['product'],
+                title=item_data['title'],
+                price=item_data['price'],
+                qty=item_data['qty'],
+            )
+
+    # Формируем текст уведомления (plain-text для Telegram)
+    lines = [f'🌸 Новый заказ #{order.pk}']
+    lines.append(f'👤 {name} / {phone}')
+    if email:
+        lines.append(f'📧 {email}')
+    if delivery_type == 'delivery':
+        lines.append(f'🚚 Доставка: {delivery_address}')
+        if pretty_datetime:
+            lines.append(f'🕐 {pretty_datetime}')
+    else:
+        store_name = pickup_store.name if pickup_store else 'уточнить'
+        lines.append(f'🏪 Самовывоз: {store_name}')
+    if recipient_name or recipient_phone:
+        lines.append(f'💐 Получатель: {recipient_name} {recipient_phone}'.strip())
+    lines.append(f'💳 Оплата: {"Наличные" if payment_type == "cash" else "Картой online"}')
+    lines.append('')
+    for item_data in order_items_data:
+        p = item_data['product']
+        article_str = f' [{p.article}]' if p.article else ''
+        lines.append(f'• {item_data["title"]}{article_str} × {item_data["qty"]} = {item_data["price"] * item_data["qty"]:.2f} BYN')
+    lines.append('')
+    lines.append(f'Товары: {subtotal:.2f} BYN')
+    if delivery_cost:
+        lines.append(f'Доставка: {delivery_cost:.2f} BYN')
+    lines.append(f'Итого: {total:.2f} BYN')
+    if comment:
+        lines.append(f'\n💬 {comment}')
+    notification_text = '\n'.join(lines)
+
+    # Уведомления отправляем в фоновом потоке — не блокируем ответ покупателю
+    import threading
+    _t = threading.Thread(
+        target=_send_order_notifications,
+        args=(
+            order.pk, notification_text, order_items_data,
+            subtotal, delivery_cost, total,
+            delivery_type, delivery_address, pretty_datetime,
+            pickup_store.name if pickup_store else 'уточнить',
+            pickup_store.address if pickup_store else '',
+            recipient_name, recipient_phone, comment,
+            payment_type, name, phone, email,
+        ),
+        daemon=True,
+    )
+    _t.start()
+
+    # Сохраняем в сессии для страницы "спасибо"
+    request.session['last_order'] = {'id': order.pk, 'name': name, 'phone': phone}
 
     # Очищаем корзину
     _save_cart(request, {})
 
-    return JsonResponse({'ok': True})
+    return JsonResponse({'ok': True, 'order_id': order.pk})
 
 
 # ─── ДАШБОРД ─────────────────────────────────────────────────────────────────
@@ -1326,6 +1683,54 @@ def dash_api_banner_save(request, banner_id):
 def dash_api_banner_delete(request, banner_id):
     banner = get_object_or_404(HeroBanner, id=banner_id)
     banner.delete()
+    return JsonResponse({'ok': True})
+
+
+@login_required(login_url='/dashboard/login/')
+def dashboard_ticker(request):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return redirect('/dashboard/')
+    import json as _json
+    items = list(Ticker.objects.order_by('sort_order', 'id').values('id', 'text', 'is_active', 'sort_order'))
+    return render(request, 'shop/dashboard/ticker.html', {
+        'items': items,
+        'items_json': _json.dumps(items, ensure_ascii=False),
+        'active': 'ticker',
+    })
+
+
+@login_required(login_url='/dashboard/login/')
+@require_POST
+def dash_api_ticker_save(request):
+    """Создать или обновить строки тикера (принимает массив)."""
+    if not (request.user.is_superuser or request.user.is_staff):
+        return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+    try:
+        data = json.loads(request.body)
+        items = data.get('items', [])
+    except Exception:
+        return JsonResponse({'ok': False, 'error': 'bad json'}, status=400)
+
+    for item in items:
+        item_id = item.get('id')
+        text = str(item.get('text', '')).strip()
+        if not text:
+            continue
+        is_active = bool(item.get('is_active', True))
+        sort_order = int(item.get('sort_order', 0) or 0)
+        if item_id:
+            Ticker.objects.filter(id=item_id).update(text=text, is_active=is_active, sort_order=sort_order)
+        else:
+            Ticker.objects.create(text=text, is_active=is_active, sort_order=sort_order)
+    return JsonResponse({'ok': True})
+
+
+@login_required(login_url='/dashboard/login/')
+@require_POST
+def dash_api_ticker_delete(request, ticker_id):
+    if not (request.user.is_superuser or request.user.is_staff):
+        return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
+    Ticker.objects.filter(id=ticker_id).delete()
     return JsonResponse({'ok': True})
 
 

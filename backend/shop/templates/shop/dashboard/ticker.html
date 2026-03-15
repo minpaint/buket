@@ -1,0 +1,165 @@
+{% extends "shop/dashboard/base_dashboard.html" %}
+{% block title %}Бегущая строка{% endblock %}
+{% block topbar_title %}Бегущая строка{% endblock %}
+
+{% block extra_styles %}
+<style>
+  .ticker-list{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+  .ticker-row{
+    display:flex;align-items:center;gap:10px;
+    padding:10px 14px;border:1px solid var(--Border);border-radius:10px;
+    background:#fff;
+  }
+  .ticker-row.inactive{opacity:.5}
+  .ticker-sort{width:52px;padding:4px 6px;border:1px solid var(--Border);border-radius:6px;font-size:13px;text-align:center;flex-shrink:0}
+  .ticker-text{flex:1;padding:6px 10px;border:1px solid var(--Border);border-radius:6px;font-size:14px;outline:none;transition:border-color .15s}
+  .ticker-text:focus{border-color:var(--PrimaryDark)}
+  .ticker-active{width:16px;height:16px;accent-color:var(--PrimaryDark);flex-shrink:0;cursor:pointer}
+  .ticker-preview{
+    background:var(--PrimaryDark);color:#fff;border-radius:10px;
+    padding:10px 16px;overflow:hidden;white-space:nowrap;
+    font-size:13px;font-weight:500;margin-bottom:18px;
+  }
+  .ticker-preview-track{
+    display:inline-flex;gap:0;
+    animation:ticker-scroll 18s linear infinite;
+  }
+  .ticker-preview:hover .ticker-preview-track{animation-play-state:paused}
+  .ticker-preview-item{padding:0 40px;display:inline-flex;align-items:center;gap:8px}
+  .ticker-preview-item::before{content:'🌸';font-size:11px;opacity:.8}
+  @keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .empty-hint{text-align:center;color:var(--Muted);padding:24px;font-size:14px}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width:760px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <span class="card-title" style="margin:0">Строки бегущей строки</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm" onclick="addRow()">+ Добавить строку</button>
+      <button class="btn btn-primary btn-sm" onclick="saveAll()">Сохранить</button>
+    </div>
+  </div>
+
+  <!-- Превью -->
+  <div class="ticker-preview" id="tickerPreview">
+    <span class="ticker-preview-track" id="tickerPreviewTrack">
+      <span style="color:rgba(255,255,255,.5);font-style:italic">Нет активных строк</span>
+    </span>
+  </div>
+
+  <!-- Подсказка -->
+  <p style="font-size:12px;color:var(--Muted);margin-bottom:14px">
+    Порядок — число (меньше = выше). Снимите галочку чтобы скрыть строку, не удаляя её.
+  </p>
+
+  <div class="ticker-list" id="tickerList">
+    {% for item in items %}
+    <div class="ticker-row {% if not item.is_active %}inactive{% endif %}" data-id="{{ item.id }}">
+      <input class="ticker-sort" type="number" min="0" value="{{ item.sort_order }}" title="Порядок" oninput="updatePreview()">
+      <input class="ticker-text" type="text" value="{{ item.text|escapejs }}" placeholder="Текст строки…" oninput="updatePreview()">
+      <input class="ticker-active" type="checkbox" {% if item.is_active %}checked{% endif %} title="Активна" onchange="toggleInactive(this);updatePreview()">
+      <button class="btn btn-danger btn-sm btn-icon" onclick="deleteRow(this, {{ item.id }})" title="Удалить">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      </button>
+    </div>
+    {% empty %}
+    <div class="empty-hint" id="emptyHint">Строк пока нет. Нажмите «Добавить строку».</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+  function toggleInactive(cb) {
+    var row = cb.closest('.ticker-row');
+    row.classList.toggle('inactive', !cb.checked);
+  }
+
+  function addRow() {
+    var emptyHint = document.getElementById('emptyHint');
+    if (emptyHint) emptyHint.remove();
+
+    var row = document.createElement('div');
+    row.className = 'ticker-row';
+    row.dataset.id = '0';
+    row.innerHTML = '<input class="ticker-sort" type="number" min="0" value="0" title="Порядок" oninput="updatePreview()">'
+      + '<input class="ticker-text" type="text" placeholder="Текст строки…" oninput="updatePreview()" autofocus>'
+      + '<input class="ticker-active" type="checkbox" checked title="Активна" onchange="toggleInactive(this);updatePreview()">'
+      + '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteRow(this,0)" title="Удалить">'
+      + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>'
+      + '</button>';
+    document.getElementById('tickerList').appendChild(row);
+    row.querySelector('.ticker-text').focus();
+    updatePreview();
+  }
+
+  function deleteRow(btn, id) {
+    var row = btn.closest('.ticker-row');
+    if (id && id !== 0) {
+      fetch('/dashboard/api/ticker/' + id + '/delete/', {
+        method: 'POST',
+        headers: {'X-CSRFToken': csrfToken()}
+      }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.ok) { row.remove(); showAlert('Строка удалена', 'success'); updatePreview(); }
+        else showAlert(data.error || 'Ошибка', 'error');
+      });
+    } else {
+      row.remove();
+      updatePreview();
+    }
+  }
+
+  function saveAll() {
+    var rows = document.querySelectorAll('#tickerList .ticker-row');
+    var items = [];
+    rows.forEach(function(row) {
+      var text = row.querySelector('.ticker-text').value.trim();
+      if (!text) return;
+      items.push({
+        id: parseInt(row.dataset.id) || 0,
+        text: text,
+        is_active: row.querySelector('.ticker-active').checked,
+        sort_order: parseInt(row.querySelector('.ticker-sort').value) || 0,
+      });
+    });
+    fetch('/dashboard/api/ticker/save/', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
+      body: JSON.stringify({items: items})
+    }).then(function(r) { return r.json(); }).then(function(data) {
+      if (data.ok) { showAlert('Сохранено', 'success'); setTimeout(function(){ location.reload(); }, 800); }
+      else showAlert(data.error || 'Ошибка', 'error');
+    });
+  }
+
+  function updatePreview() {
+    var rows = document.querySelectorAll('#tickerList .ticker-row');
+    var texts = [];
+    rows.forEach(function(row) {
+      if (!row.querySelector('.ticker-active').checked) return;
+      var text = row.querySelector('.ticker-text').value.trim();
+      if (text) texts.push(text);
+    });
+    var track = document.getElementById('tickerPreviewTrack');
+    if (!texts.length) {
+      track.innerHTML = '<span style="color:rgba(255,255,255,.5);font-style:italic">Нет активных строк</span>';
+      return;
+    }
+    // Дублируем для бесшовной анимации
+    var doubled = texts.concat(texts);
+    track.innerHTML = doubled.map(function(t) {
+      return '<span class="ticker-preview-item">' + escHtml(t) + '</span>';
+    }).join('');
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // Инициализация превью при загрузке
+  updatePreview();
+</script>
+{% endblock %}

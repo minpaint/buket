@@ -1,5 +1,28 @@
 {% extends "shop/base.html" %}
-{% block title %}Buket{% endblock %}
+{% block title %}Buket.by — доставка цветов и букетов по Минску{% endblock %}
+{% block meta_description %}Buket.by — онлайн-магазин цветов в Минске. Доставка свежих букетов, роз, тюльпанов, авторских композиций. Самовывоз из 4 магазинов. Принимаем заказы круглосуточно.{% endblock %}
+{% block meta_keywords %}доставка цветов Минск, купить букет Минск, цветочный магазин Минск, розы Минск, тюльпаны Минск, авторские букеты, Buket.by{% endblock %}
+{% block og_title %}Buket.by — доставка цветов и букетов по Минску{% endblock %}
+{% block og_description %}Свежие букеты из наших магазинов с доставкой по Минску. Авторские композиции, розы, тюльпаны. Онлайн-витрина, самовывоз, оплата картой.{% endblock %}
+{% block schema_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "@id": "https://buket.by/#website",
+  "name": "Buket.by",
+  "url": "https://buket.by/",
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": "https://buket.by/store/?q={search_term_string}"
+    },
+    "query-input": "required name=search_term_string"
+  }
+}
+</script>
+{% endblock %}
 {% block extra_styles %}
 <style>
   .container{max-width:1280px;margin:0 auto;padding:0 20px}
@@ -86,8 +109,8 @@
     font-size:17px;flex-shrink:0;
   }
   .store-showcase-texts{min-width:0}
-  .store-showcase-name{font-size:15px;font-weight:700;color:var(--PrimaryDark);margin:0 0 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .store-showcase-addr{font-size:12px;color:#6b7280;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .store-showcase-name{font-size:15px;font-weight:700;color:var(--PrimaryDark);margin:0 0 2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .store-showcase-addr{font-size:12px;color:#6b7280;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .btn-see-all{
     display:inline-flex;align-items:center;gap:5px;
     background:#fff;border:1px solid #c6e8cc;
@@ -97,6 +120,11 @@
   }
   .btn-see-all:hover{background:#e8f5e9}
   .showcase-divider{border:none;border-top:1px solid rgba(34,139,34,.12);margin:24px 0 0}
+  @media(max-width:760px){
+    .store-showcase-name,.store-showcase-addr{white-space:normal;text-overflow:unset;overflow:visible}
+    .store-showcase-meta{align-items:flex-start}
+    .store-showcase-header{align-items:flex-start}
+  }
   @media(max-width:560px){
     .store-showcase-name{font-size:14px}
     .store-showcase-header{padding:10px 12px;gap:8px}

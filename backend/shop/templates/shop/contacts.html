@@ -1,6 +1,20 @@
 {% extends "shop/base.html" %}
-{% block title %}Контакты магазинов — Buket.by{% endblock %}
-
+{% block title %}Контакты цветочных магазинов Buket.by в Минске{% endblock %}
+{% block meta_description %}Адреса, телефоны и режим работы магазинов Buket.by в Минске. Самовывоз букетов на Комсомольской (Немига), Петра Мстиславца (Дана Молл), пр. Победителей (Галерея Минск), Льва Толстого (Минск Сити Молл).{% endblock %}
+{% block og_title %}Контакты магазинов Buket.by — Минск{% endblock %}
+{% block og_description %}Адреса и телефоны цветочных магазинов Buket.by в Минске. Приходите за букетом или закажите доставку онлайн.{% endblock %}
+{% block schema_extra %}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type":"ListItem","position":1,"name":"Главная","item":"https://buket.by/"},
+    {"@type":"ListItem","position":2,"name":"Контакты магазинов","item":"https://buket.by/kontakty/"}
+  ]
+}
+</script>
+{% endblock %}
 {% block extra_styles %}
 <style>
   .contacts-wrap{max-width:1280px;margin:0 auto;padding:32px 20px 56px}

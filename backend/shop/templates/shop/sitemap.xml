@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="https://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="https://www.google.com/schemas/sitemap-image/1.1">
+  {# ── Статические страницы ── #}
+  <url>
+    <loc>https://buket.by/</loc>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://buket.by/store/</loc>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://buket.by/kontakty/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://buket.by/reviews/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://buket.by/p/dostavka/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>https://buket.by/p/oplata/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://buket.by/page/terms/</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+  <url>
+    <loc>https://buket.by/page/returns/</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
+
+  {# ── Категории ── #}
+  {% for cat in categories %}
+  {% if cat.slug %}
+  <url>
+    <loc>https://buket.by/store/category/{{ cat.slug }}/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  {% for child in cat.children.all %}
+  {% if child.slug %}
+  <url>
+    <loc>https://buket.by/store/category/{{ child.slug }}/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  {% endif %}
+  {% endfor %}
+  {% endif %}
+  {% endfor %}
+
+  {# ── Цветочные теги ── #}
+  {% for tag in flower_tags %}
+  {% if tag.slug %}
+  <url>
+    <loc>https://buket.by/store/flower/{{ tag.slug }}/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  {% endif %}
+  {% endfor %}
+
+  {# ── Товары ── #}
+  {% for product in products %}
+  {% if product.slug %}
+  <url>
+    <loc>https://buket.by/store/{{ product.slug }}/</loc>
+    <lastmod>{{ product.created_at|date:"Y-m-d" }}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+    {% if product.uploaded_image %}
+    <image:image>
+      <image:loc>https://buket.by{{ product.uploaded_image.url }}</image:loc>
+      <image:title>{{ product.title }}</image:title>
+    </image:image>
+    {% endif %}
+  </url>
+  {% endif %}
+  {% endfor %}
+</urlset>

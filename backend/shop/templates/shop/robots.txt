@@ -1,0 +1,19 @@
+User-agent: *
+Allow: /
+
+# Служебные разделы
+Disallow: /admin/
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /swagger/
+Disallow: /redoc/
+Disallow: /register/
+
+# Корзина и оформление заказа
+Disallow: /cart/
+
+# URL с параметрами (сортировка, поиск, пагинация)
+Disallow: /store/*?*
+
+# Sitemap
+Sitemap: https://buket.by/sitemap.xml

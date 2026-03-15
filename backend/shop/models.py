@@ -347,6 +347,11 @@ class HeroBanner(models.Model):
 class SitePage(models.Model):
     slug = models.SlugField(max_length=60, unique=True, verbose_name='URL (slug)')
     title = models.CharField(max_length=200, verbose_name='Заголовок')
+    seo_description = models.CharField(
+        max_length=320, blank=True, default='',
+        verbose_name='SEO описание (meta description)',
+        help_text='До 160 символов. Если пусто — генерируется автоматически.'
+    )
     content = models.TextField(verbose_name='Содержимое (HTML)')
     is_active = models.BooleanField(default=True, verbose_name='Активна')
     sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='Порядок в меню')
@@ -375,6 +380,154 @@ class Ticker(models.Model):
         return self.text[:60]
 
 
+class SiteSettings(models.Model):
+    """Singleton-настройки сайта (доставка, контакты, Telegram и т.д.)."""
+    delivery_cost = models.DecimalField(
+        max_digits=8, decimal_places=2, default=15,
+        verbose_name='Стоимость доставки (BYN)',
+    )
+    delivery_free_from = models.DecimalField(
+        max_digits=8, decimal_places=2, default=100,
+        verbose_name='Бесплатная доставка от (BYN)',
+    )
+    notification_email = models.EmailField(
+        blank=True, default='',
+        verbose_name='Email для уведомлений о заказах',
+    )
+    telegram_notify_token = models.CharField(
+        max_length=200, blank=True, default='',
+        verbose_name='Telegram Bot Token для уведомлений',
+        help_text='Токен бота, который будет слать уведомления',
+    )
+    telegram_notify_chat_id = models.CharField(
+        max_length=100, blank=True, default='',
+        verbose_name='Telegram Chat ID для уведомлений',
+        help_text='ID чата или группы, куда слать уведомления о заказах',
+    )
+    metrika_counter = models.TextField(
+        blank=True, default='',
+        verbose_name='Код счётчика Яндекс.Метрики',
+        help_text='Вставьте полный JS-код счётчика из Яндекс.Метрики (тег <script>...)',
+    )
+
+    class Meta:
+        verbose_name = 'Настройки сайта'
+        verbose_name_plural = 'Настройки сайта'
+
+    def __str__(self):
+        return 'Настройки сайта'
+
+    @classmethod
+    def get(cls):
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
+class GuestOrder(models.Model):
+    """Заказ от гостя (без авторизации), сохраняется в БД."""
+    DELIVERY_DELIVERY = 'delivery'
+    DELIVERY_PICKUP = 'pickup'
+    DELIVERY_CHOICES = [
+        (DELIVERY_DELIVERY, 'Доставка'),
+        (DELIVERY_PICKUP, 'Самовывоз'),
+    ]
+    PAYMENT_CASH = 'cash'
+    PAYMENT_CARD = 'card'
+    PAYMENT_CHOICES = [
+        (PAYMENT_CASH, 'Наличные'),
+        (PAYMENT_CARD, 'Оплата картой online'),
+    ]
+    STATUS_NEW = 'new'
+    STATUS_CONFIRMED = 'confirmed'
+    STATUS_DONE = 'done'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_NEW, 'Новый'),
+        (STATUS_CONFIRMED, 'Подтверждён'),
+        (STATUS_DONE, 'Выполнен'),
+        (STATUS_CANCELLED, 'Отменён'),
+    ]
+
+    # Контактные данные покупателя
+    customer_name = models.CharField(max_length=200, verbose_name='Имя')
+    customer_phone = models.CharField(max_length=50, verbose_name='Телефон')
+    customer_email = models.EmailField(blank=True, default='', verbose_name='Email')
+
+    # Данные получателя (если отличается)
+    recipient_name = models.CharField(max_length=200, blank=True, default='', verbose_name='Имя получателя')
+    recipient_phone = models.CharField(max_length=50, blank=True, default='', verbose_name='Телефон получателя')
+
+    # Доставка
+    delivery_type = models.CharField(
+        max_length=16, choices=DELIVERY_CHOICES, default=DELIVERY_DELIVERY,
+        verbose_name='Способ доставки',
+    )
+    pickup_store = models.ForeignKey(
+        'Store', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='guest_orders_pickup',
+        verbose_name='Магазин самовывоза',
+    )
+    delivery_address = models.TextField(blank=True, default='', verbose_name='Адрес доставки')
+    delivery_date = models.CharField(max_length=50, blank=True, default='', verbose_name='Дата доставки')
+    delivery_time = models.CharField(max_length=50, blank=True, default='', verbose_name='Время доставки')
+
+    # Оплата
+    payment_type = models.CharField(
+        max_length=16, choices=PAYMENT_CHOICES, default=PAYMENT_CASH,
+        verbose_name='Способ оплаты',
+    )
+
+    # Суммы
+    subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Сумма товаров')
+    delivery_cost = models.DecimalField(max_digits=8, decimal_places=2, default=0, verbose_name='Стоимость доставки')
+    total = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name='Итого к оплате')
+
+    # Комментарий
+    comment = models.TextField(blank=True, default='', verbose_name='Комментарий к заказу')
+
+    # Статус
+    status = models.CharField(
+        max_length=16, choices=STATUS_CHOICES, default=STATUS_NEW,
+        verbose_name='Статус',
+    )
+
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создан')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлён')
+
+    class Meta:
+        verbose_name = 'Гостевой заказ'
+        verbose_name_plural = 'Гостевые заказы'
+        ordering = ('-created_at',)
+
+    def __str__(self):
+        return f'Заказ #{self.pk} — {self.customer_name} ({self.created_at.strftime("%d.%m.%Y %H:%M")})'
+
+
+class GuestOrderItem(models.Model):
+    order = models.ForeignKey(
+        GuestOrder, on_delete=models.CASCADE, related_name='items',
+        verbose_name='Заказ',
+    )
+    product = models.ForeignKey(
+        'Product', on_delete=models.SET_NULL, null=True,
+        verbose_name='Товар',
+    )
+    title = models.CharField(max_length=200, verbose_name='Название (на момент заказа)')
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Цена (на момент заказа)')
+    qty = models.PositiveIntegerField(verbose_name='Количество')
+
+    class Meta:
+        verbose_name = 'Позиция заказа'
+        verbose_name_plural = 'Позиции заказа'
+
+    def __str__(self):
+        return f'{self.title} × {self.qty}'
+
+    @property
+    def line_total(self):
+        return self.price * self.qty
+
+
 class ShowcaseItem(models.Model):
     """Товар в витрине конкретного магазина (независимо от is_online_showcase)."""
     store = models.ForeignKey(
@@ -399,3 +552,35 @@ class ShowcaseItem(models.Model):
 
     def __str__(self):
         return f'{self.store.name} — {self.product.title}'
+
+
+class TelegramBotSession(models.Model):
+    """Состояние диалога Telegram-бота для webhook-режима."""
+
+    storage_key = models.CharField(max_length=255, unique=True, verbose_name='Ключ сессии')
+    bot_id = models.BigIntegerField(verbose_name='Bot ID')
+    chat_id = models.BigIntegerField(verbose_name='Chat ID')
+    user_id = models.BigIntegerField(verbose_name='User ID')
+    thread_id = models.BigIntegerField(null=True, blank=True, verbose_name='Thread ID')
+    business_connection_id = models.CharField(
+        max_length=255,
+        blank=True,
+        default='',
+        verbose_name='Business connection ID',
+    )
+    destiny = models.CharField(max_length=64, default='default', verbose_name='Destiny')
+    state = models.CharField(max_length=255, blank=True, default='', verbose_name='FSM state')
+    data = models.JSONField(default=dict, blank=True, verbose_name='FSM data')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Создана')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='Обновлена')
+
+    class Meta:
+        verbose_name = 'Сессия Telegram-бота'
+        verbose_name_plural = 'Сессии Telegram-бота'
+        ordering = ('-updated_at',)
+        indexes = [
+            models.Index(fields=('chat_id', 'user_id')),
+        ]
+
+    def __str__(self):
+        return f'TG session {self.chat_id}:{self.user_id}'

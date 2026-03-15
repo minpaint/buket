@@ -1,430 +1,709 @@
 {% extends "shop/base.html" %}
-{% block title %}Корзина - Buket{% endblock %}
+{% block title %}Оформление заказа — Buket.by{% endblock %}
+{% block meta_robots %}noindex, nofollow{% endblock %}
 
 {% block extra_styles %}
 <style>
-  .wrap{max-width:1100px;margin:0 auto;padding:20px}
-  .page-title{font-size:32px;color:#166534;margin:0 0 20px}
+  .checkout-wrap{max-width:1180px;margin:0 auto;padding:20px 16px 40px}
+  .checkout-title{font-size:22px;color:#333;margin:0 0 20px;font-weight:400}
 
-  /* Двухколоночный layout */
-  .cart-layout{display:grid;grid-template-columns:1fr 340px;gap:20px;align-items:start}
-
-  /* Пустая корзина */
-  .empty-state{
-    grid-column:1/-1;
-    text-align:center;padding:60px 20px;
-    border:1px solid #e5e7eb;border-radius:14px;background:#fafafa;
-  }
-  .empty-state svg{opacity:.3;margin-bottom:16px}
-  .empty-state p{color:#6b7280;font-size:16px;margin:0 0 20px}
-  .btn-primary{
-    display:inline-flex;align-items:center;gap:8px;
-    background:#166534;color:#fff;
-    padding:11px 24px;border-radius:999px;
-    font-weight:700;font-size:15px;
-    border:none;cursor:pointer;text-decoration:none;
-    transition:background .2s;
-  }
-  .btn-primary:hover{background:#14532d}
-
-  /* Список товаров */
-  .cart-items{display:flex;flex-direction:column;gap:12px}
-
-  .cart-item{
+  /* ── Сетка блоков ── */
+  .checkout-grid{
     display:grid;
-    grid-template-columns:90px 1fr auto;
-    gap:14px;align-items:center;
-    border:1px solid #e5e7eb;border-radius:12px;
-    padding:12px;background:#fff;
+    grid-template-columns:1fr 1fr 1fr;
+    gap:16px;
+    align-items:start;
   }
-  .item-img{
-    width:90px;height:90px;object-fit:cover;
-    border-radius:8px;background:#f3f9f1;flex-shrink:0;
-  }
-  .item-info{min-width:0}
-  .item-title{
-    font-size:15px;font-weight:600;color:#1f2937;
-    margin:0 0 4px;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  }
-  .item-price{font-size:13px;color:#6b7280;margin:0 0 10px}
-
-  /* Контроль количества */
-  .qty-control{display:flex;align-items:center;gap:0}
-  .qty-btn{
-    width:32px;height:32px;
-    border:1px solid #d1d5db;background:#fff;
-    border-radius:8px;
-    font-size:18px;line-height:1;color:#166534;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;
-    transition:background .15s,border-color .15s;
-    flex-shrink:0;
-  }
-  .qty-btn:hover:not(:disabled){background:#f3f9f1;border-color:#166534}
-  .qty-btn:disabled{opacity:.35;cursor:default}
-  .qty-val{
-    width:40px;text-align:center;
-    font-size:15px;font-weight:700;color:#111827;
-    border:none;outline:none;background:transparent;
-  }
-
-  /* Правая колонка: итого */
-  .item-right{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex-shrink:0}
-  .item-total{font-size:17px;font-weight:700;color:#166534;white-space:nowrap}
-  .remove-btn{
-    background:none;border:none;cursor:pointer;padding:4px;
-    color:#9ca3af;transition:color .15s;
-    display:flex;align-items:center;
-  }
-  .remove-btn:hover{color:#dc2626}
-
-  /* Итоговая панель */
-  .order-summary{
-    border:1px solid #e5e7eb;border-radius:14px;
-    background:#fff;padding:20px;
-    position:sticky;top:76px;
-  }
-  .summary-title{font-size:18px;font-weight:700;color:#166534;margin:0 0 16px}
-  .summary-row{
-    display:flex;justify-content:space-between;
-    font-size:14px;color:#374151;margin-bottom:10px;
-  }
-  .summary-divider{border:none;border-top:1px solid #e5e7eb;margin:14px 0}
-  .summary-total{
-    display:flex;justify-content:space-between;
-    font-size:18px;font-weight:700;color:#111827;margin-bottom:20px;
-  }
-  .btn-checkout{
-    width:100%;padding:13px;
-    background:#166534;color:#fff;
-    border:none;border-radius:999px;
-    font-size:16px;font-weight:700;cursor:pointer;
-    transition:background .2s;
-  }
-  .btn-checkout:hover{background:#14532d}
-  .summary-note{font-size:12px;color:#9ca3af;text-align:center;margin-top:10px}
-
-  /* Модалка оформления */
-  .modal-overlay{
-    display:none;position:fixed;inset:0;
-    background:rgba(0,0,0,.45);z-index:100;
-  }
-  .modal-overlay.open{
+  /* Блок 1 — контакты: колонка 1 */
+  .block-contacts{grid-column:1}
+  /* Колонка 2 — оплата + доставка в flex-столбце */
+  .col-middle{
+    grid-column:2;
     display:flex;
-    align-items:center;justify-content:center;
+    flex-direction:column;
+    gap:16px;
   }
-  .modal{
-    background:#fff;border-radius:16px;
-    padding:28px 24px;max-width:440px;width:calc(100% - 32px);
-    position:relative;
+  /* Блок 4 — подтверждение: колонка 3 */
+  .block-confirm{grid-column:3}
+
+  .checkout-block{
+    border:1px solid #c8d8f0;border-radius:4px;
+    background:#fff;padding:16px;
   }
-  .modal h2{margin:0 0 16px;font-size:20px;color:#166534}
-  .modal-close{
-    position:absolute;top:14px;right:16px;
-    background:none;border:none;font-size:22px;
-    color:#9ca3af;cursor:pointer;line-height:1;
+  .block-head{
+    font-size:13px;font-weight:700;letter-spacing:.5px;
+    color:#2a5db0;border-bottom:1px solid #c8d8f0;
+    padding-bottom:10px;margin:0 0 14px;text-transform:uppercase;
   }
-  .form-field{margin-bottom:14px}
-  .form-field label{display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:4px}
-  .form-field input,.form-field textarea,.form-field select{
-    width:100%;padding:9px 12px;
-    border:1px solid #d1d5db;border-radius:8px;
-    font-size:14px;color:#111827;outline:none;
+
+  /* ── Поля ── */
+  .field{margin-bottom:10px}
+  .field label{display:block;font-size:12px;color:#555;margin-bottom:3px}
+  .field input,.field textarea{
+    width:100%;box-sizing:border-box;
+    padding:10px 10px;font-size:16px; /* 16px — не вызывает зум на iOS */
+    border:1px solid #ccc;border-radius:6px;
+    color:#333;outline:none;
     transition:border-color .15s;
-    box-sizing:border-box;
+    -webkit-appearance:none; /* убирает системные стили iOS */
   }
-  .form-field input:focus,.form-field textarea:focus{border-color:#166534}
-  .form-field textarea{resize:vertical;min-height:72px}
-  .modal-footer{display:flex;gap:10px;margin-top:20px}
-  .btn-cancel{
-    flex:1;padding:11px;border:1px solid #d1d5db;
-    background:#fff;border-radius:999px;
-    font-size:15px;font-weight:700;cursor:pointer;color:#374151;
+  .field input:focus,.field textarea:focus{border-color:#2a5db0}
+  /* На десктопе можно помельче */
+  @media(min-width:641px){
+    .field input,.field textarea{padding:7px 9px;font-size:14px}
+  }
+  .field-required{color:#c00;font-size:11px;float:right;margin-top:2px}
+  .required-note{font-size:11px;color:#c00;margin-top:6px}
+  .req-icon{color:#c00;font-size:14px;vertical-align:middle}
+
+  /* Блок получателя */
+  .recipient-block{
+    background:#fdf8e8;border:1px solid #e8d88a;border-radius:3px;
+    padding:10px;margin-top:10px;
+  }
+  .recipient-block .field:last-child{margin-bottom:0}
+
+  /* ── Радио ── */
+  .radio-group{display:flex;flex-direction:column;gap:4px}
+  .radio-item{
+    display:flex;align-items:flex-start;gap:10px;cursor:pointer;
+    padding:8px 10px;border-radius:6px;
     transition:background .15s;
   }
-  .btn-cancel:hover{background:#f3f4f6}
-  .btn-submit{
-    flex:2;padding:11px;background:#166534;
-    color:#fff;border:none;border-radius:999px;
-    font-size:15px;font-weight:700;cursor:pointer;
-    transition:background .2s;
+  .radio-item:hover{background:#f5f9ff}
+  .radio-item input[type=radio]{
+    margin-top:3px;cursor:pointer;accent-color:#2a5db0;
+    width:18px;height:18px;flex-shrink:0; /* крупнее для пальца */
   }
-  .btn-submit:hover{background:#14532d}
+  .radio-label{font-size:14px;color:#333;font-weight:500}
+  .radio-desc{font-size:12px;color:#555;margin-top:3px;line-height:1.4}
+  .payment-logos{margin-top:8px}
+  .payment-logos img{max-width:240px;width:100%;height:auto}
+
+  /* ── Самовывоз select ── */
+  .pickup-select-wrap{display:none;margin-top:12px;padding-top:10px;border-top:1px dashed #c8d8f0}
+  .pickup-select-wrap.visible{display:block}
+
+  /* ── Детали доставки ── */
+  .delivery-details-wrap{
+    display:none;
+    margin-top:12px;padding-top:10px;
+    border-top:1px dashed #c8d8f0;
+  }
+  .delivery-details-wrap.visible{display:block}
+  .delivery-details-wrap .field:last-child{margin-bottom:0}
+  .pickup-select{
+    width:100%;box-sizing:border-box;
+    padding:7px 10px;font-size:13px;color:#333;
+    border:1px solid #c8d8f0;border-radius:3px;
+    background:#f5f9ff;outline:none;cursor:pointer;
+    transition:border-color .15s;
+    appearance:none;-webkit-appearance:none;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232a5db0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 10px center;
+    padding-right:28px;
+  }
+  .pickup-select:focus{border-color:#2a5db0;background-color:#eef4ff}
+  .pickup-info{
+    margin-top:8px;padding:8px 10px;
+    background:#f0f7e8;border:1px solid #c3dfa0;border-radius:3px;
+    font-size:12px;color:#3a5a1a;line-height:1.5;
+    display:none;
+  }
+  .pickup-info.visible{display:block}
+  .pickup-info strong{display:block;margin-bottom:2px;color:#2a4a10}
+  .pickup-info .pi-addr{color:#444}
+  .pickup-info .pi-hours{color:#555;margin-top:2px}
+
+  /* ── Таблица товаров ── */
+  .confirm-table{width:100%;border-collapse:collapse;font-size:12px}
+  .confirm-table th{
+    text-align:left;padding:4px 6px;
+    border-bottom:1px solid #ccc;color:#555;font-weight:400;
+  }
+  .confirm-table th.right,.confirm-table td.right{text-align:right}
+  .confirm-table td{padding:6px 6px;border-bottom:1px solid #eee;vertical-align:middle}
+  .product-img{width:60px;height:60px;object-fit:cover;border-radius:3px;background:#f3f9f1}
+  .product-name{color:#2a5db0;font-size:12px;line-height:1.3}
+  .qty-ctrl{display:flex;align-items:center;gap:0;justify-content:center}
+  .qty-btn{
+    width:32px;height:32px;border:1px solid #bbb;background:#fff;
+    font-size:16px;line-height:1;color:#333;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:background .1s;border-radius:4px 0 0 4px;
+  }
+  .qty-btn:last-child{border-radius:0 4px 4px 0}
+  .qty-btn:hover:not(:disabled){background:#f0f0f0}
+  .qty-btn:disabled{opacity:.35;cursor:default}
+  .qty-input{
+    width:40px;text-align:center;
+    border-top:1px solid #bbb;border-bottom:1px solid #bbb;
+    border-left:none;border-right:none;height:32px;
+    font-size:13px;font-weight:700;background:#fff;outline:none;
+  }
+  .remove-item{
+    background:none;border:none;cursor:pointer;color:#bbb;
+    font-size:18px;padding:6px 8px;line-height:1;
+    transition:color .15s;
+  }
+  .remove-item:hover{color:#c00}
+
+  /* Итоги */
+  .confirm-totals{margin-top:10px;font-size:12px}
+  .totals-row{display:flex;justify-content:flex-end;gap:20px;padding:2px 6px}
+  .totals-row span:first-child{color:#555}
+  .totals-row span:last-child{min-width:80px;text-align:right;font-weight:600}
+  .totals-row.grand{font-size:14px;font-weight:700;color:#111;padding-top:6px;border-top:1px solid #ccc;margin-top:4px}
+
+  /* Согласие */
+  .agree-block{margin:12px 0;font-size:12px;line-height:1.5}
+  .agree-block label{display:flex;align-items:flex-start;gap:6px;cursor:pointer}
+  .agree-block input[type=checkbox]{margin-top:2px;accent-color:#2a5db0;flex-shrink:0}
+  .agree-block a{color:#2a5db0;text-decoration:underline}
+
+  /* Комментарий */
+  .comment-block{margin:10px 0}
+  .comment-block label{font-size:12px;color:#555;display:block;margin-bottom:3px;text-align:center}
+  .comment-block textarea{
+    width:100%;box-sizing:border-box;height:60px;resize:vertical;
+    border:1px solid #ccc;border-radius:3px;padding:6px 8px;
+    font-size:12px;color:#333;outline:none;
+  }
+  .comment-block textarea:focus{border-color:#2a5db0}
+
+  /* Кнопка оформить */
+  .btn-place-order{
+    width:100%;padding:14px;margin-top:12px;
+    background:#2a96e8;color:#fff;
+    border:none;border-radius:6px;
+    font-size:16px;font-weight:700;cursor:pointer;
+    transition:background .2s;
+    -webkit-tap-highlight-color:transparent;
+    touch-action:manipulation;
+  }
+  .btn-place-order:active{background:#1a7bc8}
+  .btn-place-order:hover:not(:disabled){background:#1a7bc8}
+  .btn-place-order:disabled{opacity:.6;cursor:default}
+
+  /* Пустая корзина */
+  .empty-cart{text-align:center;padding:60px 20px;color:#666;font-size:15px}
+  .empty-cart a{color:#2a5db0;text-decoration:underline}
 
   /* Успех */
-  .success-state{text-align:center;padding:20px 0}
-  .success-state svg{color:#166534;margin-bottom:12px}
-  .success-state h2{color:#166534;margin:0 0 8px}
-  .success-state p{color:#6b7280;margin:0 0 20px}
-
-  @media (max-width:900px){
-    .wrap{padding:14px 12px}
-    .page-title{font-size:24px}
-    .cart-layout{grid-template-columns:1fr}
-    .order-summary{position:static}
+  .success-wrap{text-align:center;padding:60px 20px}
+  .success-wrap h2{color:#166534;margin-bottom:12px}
+  .success-wrap p{color:#555;margin-bottom:20px}
+  .btn-continue{
+    display:inline-block;padding:10px 28px;
+    background:#2a96e8;color:#fff;border-radius:3px;
+    font-weight:700;text-decoration:none;font-size:14px;
   }
-  @media (max-width:560px){
-    .cart-item{grid-template-columns:70px 1fr auto;gap:10px;padding:10px}
-    .item-img{width:70px;height:70px}
-    .item-title{font-size:13px}
+
+  @media(max-width:960px){
+    .checkout-grid{grid-template-columns:1fr 1fr}
+    .block-contacts{grid-column:1}
+    .col-middle{grid-column:2}
+    .block-confirm{grid-column:1/3}
+  }
+
+  @media(max-width:640px){
+    .checkout-wrap{padding:12px 12px 60px}
+    .checkout-title{font-size:18px;margin-bottom:14px}
+    .checkout-grid{grid-template-columns:1fr;gap:10px}
+    .block-contacts,.col-middle,.block-confirm{grid-column:1}
+    .checkout-block{padding:14px 12px}
+    .block-head{font-size:12px;padding-bottom:8px;margin-bottom:12px}
+
+    /* Поля — уже задано выше через mobile-first */
+
+    /* Таблица товаров — скрываем колонку цены, оставляем фото/название/кол-во/сумма */
+    .confirm-table .col-price{display:none}
+    .confirm-table td,.confirm-table th{padding:6px 4px}
+    .product-img{width:48px;height:48px}
+    .product-name{font-size:12px}
+
+    /* Кнопки кол-ва — немного крупнее */
+    .qty-btn{width:36px;height:36px;font-size:18px}
+    .qty-input{width:36px;height:36px;font-size:14px}
+
+    /* Итоги */
+    .totals-row{gap:10px}
+
+    /* Кнопка оформить — sticky внизу экрана */
+    .btn-place-order{
+      position:sticky;bottom:0;
+      border-radius:0;
+      margin:12px -12px -14px;
+      width:calc(100% + 24px);
+      padding:16px;
+      font-size:17px;
+      box-shadow:0 -2px 12px rgba(0,0,0,.15);
+      z-index:10;
+    }
+
+    /* Согласие */
+    .agree-block{font-size:12px}
+
+    /* Pickup select */
+    .pickup-select{font-size:16px;padding:10px 30px 10px 10px}
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="wrap">
-  <h1 class="page-title">Корзина</h1>
+<div class="checkout-wrap">
 
-  {% if items %}
-  <div class="cart-layout">
+{% if items %}
 
-    <!-- Список товаров -->
-    <div class="cart-items" id="cartItems">
-      {% for item in items %}
-      <div class="cart-item" id="item-{{ item.id }}">
-        <img class="item-img" src="{{ item.image_url }}" alt="{{ item.title }}">
-        <div class="item-info">
-          <p class="item-title">{{ item.title }}</p>
-          <p class="item-price">{% if item.price %}{{ item.price|floatformat:"-2" }} BYN × <span class="qty-display">{{ item.qty }}</span>{% else %}Цену уточняйте{% endif %}</p>
-          <div class="qty-control">
-            <button class="qty-btn" onclick="changeQty({{ item.id }}, -1)" {% if item.qty <= 1 %}disabled{% endif %} id="btn-minus-{{ item.id }}">−</button>
-            <span class="qty-val" id="qty-{{ item.id }}">{{ item.qty }}</span>
-            <button class="qty-btn" onclick="changeQty({{ item.id }}, 1)" {% if item.qty >= 99 %}disabled{% endif %} id="btn-plus-{{ item.id }}">+</button>
+<p class="checkout-title">Оформление заказа</p>
+
+<div id="mainContent">
+<div class="checkout-grid">
+
+  <!-- ═══ 1. КОНТАКТНЫЕ ДАННЫЕ ═══ -->
+  <div class="checkout-block block-contacts">
+    <p class="block-head">1. Контактные данные</p>
+
+    <div class="field">
+      <label>Имя <span class="req-icon">▲</span></label>
+      <input type="text" id="fName" placeholder="" autocomplete="name">
+    </div>
+    <div class="field">
+      <label>Мобильный телефон <span class="req-icon">▲</span></label>
+      <input type="tel" id="fPhone" placeholder="+375 (XX) XXX-XX-XX" autocomplete="tel">
+    </div>
+    <div class="field" style="margin-bottom:0">
+      <label>E-mail <span class="req-icon">▲</span></label>
+      <input type="email" id="fEmail" placeholder="" autocomplete="email">
+    </div>
+
+    <p class="required-note"><span class="req-icon">▲</span> — Обязательно для заполнения</p>
+  </div>
+
+  <!-- ═══ Колонка 2: оплата + доставка ═══ -->
+  <div class="col-middle">
+
+  <!-- 2. СПОСОБ ОПЛАТЫ -->
+  <div class="checkout-block block-payment">
+    <p class="block-head">2. Способ оплаты</p>
+    <div class="radio-group">
+      <label class="radio-item">
+        <input type="radio" name="paymentType" value="cash" checked>
+        <span class="radio-label">Наличные</span>
+      </label>
+      <label class="radio-item">
+        <input type="radio" name="paymentType" value="card">
+        <div>
+          <div class="radio-label">Оплата картой online</div>
+          <div class="payment-logos" id="cardLogos" style="display:none">
+            <img src="/static/buket_oplata.jpg" alt="Способы оплаты: ArtPay, Visa, MasterCard, Белкарт">
           </div>
         </div>
-        <div class="item-right">
-          <span class="item-total" id="total-{{ item.id }}">{% if item.price %}{{ item.line_total|floatformat:"-2" }} BYN{% else %}—{% endif %}</span>
-          <button class="remove-btn" onclick="removeItem({{ item.id }})" title="Удалить">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
-            </svg>
-          </button>
+      </label>
+    </div>
+  </div>
+
+  <!-- 3. СПОСОБ ДОСТАВКИ -->
+  <div class="checkout-block block-delivery">
+    <p class="block-head">3. Способ доставки</p>
+
+    <!-- Самовывоз -->
+    <label class="radio-item">
+      <input type="radio" name="deliveryType" value="pickup" checked>
+      <div>
+        <div class="radio-label">Самовывоз</div>
+        <div class="radio-desc">Выберите удобную точку</div>
+      </div>
+    </label>
+
+    <!-- Выпадающий список магазинов — сразу под Самовывозом -->
+    <div class="pickup-select-wrap" id="pickupSelectWrap">
+      <select class="pickup-select" id="pickupStoreSelect">
+        <option value="">— выберите магазин —</option>
+        {% for store in stores %}
+        <option value="{{ store.id }}"
+          data-address="{{ store.address }}"
+          data-hours="{{ store.working_hours }}">
+          {{ store.name }}
+        </option>
+        {% endfor %}
+      </select>
+
+      <!-- Карточка выбранного магазина -->
+      <div class="pickup-info" id="pickupInfo">
+        <strong id="piName"></strong>
+        <span class="pi-addr" id="piAddr"></span>
+        <span class="pi-hours" id="piHours"></span>
+      </div>
+    </div>
+
+    <!-- Доставка по Минску -->
+    <label class="radio-item" style="margin-top:10px">
+      <input type="radio" name="deliveryType" value="delivery">
+      <div>
+        <div class="radio-label">Доставка по Минску</div>
+        <div class="radio-desc">
+          Стоимость доставки — {{ settings.delivery_cost }} BYN.<br>
+          Бесплатно при заказе от {{ settings.delivery_free_from }} BYN
         </div>
       </div>
-      {% endfor %}
+    </label>
+
+    <!-- Блок адреса и получателя (при доставке) -->
+    <div class="delivery-details-wrap" id="deliveryDetailsWrap">
+      <div class="field">
+        <label>Адрес доставки <span class="req-icon">▲</span></label>
+        <input type="text" id="fAddress" placeholder="Улица, дом, квартира" autocomplete="street-address">
+      </div>
+      <div class="field">
+        <label>Имя получателя</label>
+        <input type="text" id="fRecipientName" placeholder="" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Телефон получателя</label>
+        <input type="tel" id="fRecipientPhone" placeholder="" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Дата доставки</label>
+        <input type="date" id="fDate">
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label>Время доставки</label>
+        <input type="time" id="fTime">
+      </div>
     </div>
 
-    <!-- Итоговая панель -->
-    <div class="order-summary">
-      <p class="summary-title">Ваш заказ</p>
-      <div class="summary-row">
-        <span>Товары (<span id="summary-count">{{ items|length }}</span>)</span>
-        <span id="summary-subtotal">{{ total|floatformat:"-2" }} BYN</span>
-      </div>
-      <div class="summary-row">
-        <span>Доставка</span>
-        <span style="color:#166534;font-weight:600">Уточняется</span>
-      </div>
-      <hr class="summary-divider">
-      <div class="summary-total">
+  </div>
+
+  </div><!-- /.col-middle -->
+
+  <!-- ═══ 4. ПОДТВЕРДИТЬ ЗАКАЗ ═══ -->
+  <div class="checkout-block block-confirm">
+    <p class="block-head">4. Подтвердить заказ</p>
+
+    <table class="confirm-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th></th>
+          <th>Наименование</th>
+          <th class="right col-price">Цена</th>
+          <th class="right">Кол-во</th>
+          <th class="right">Сумма</th>
+        </tr>
+      </thead>
+      <tbody id="orderTableBody">
+        {% for item in items %}
+        <tr id="crow-{{ item.id }}">
+          <td>
+            <button class="remove-item" onclick="removeItem({{ item.id }})" title="Удалить">🗑</button>
+          </td>
+          <td><img class="product-img" src="{{ item.image_url }}" alt="{{ item.title }}"></td>
+          <td><span class="product-name">{{ item.title }}</span></td>
+          <td class="right col-price">{% if item.price %}{{ item.price|floatformat:2 }}<br>BYN{% else %}—{% endif %}</td>
+          <td class="right">
+            <div class="qty-ctrl">
+              <button class="qty-btn" onclick="changeQty({{ item.id }}, -1)" {% if item.qty <= 1 %}disabled{% endif %} id="cminus-{{ item.id }}">−</button>
+              <input class="qty-input" type="text" id="cqty-{{ item.id }}" value="{{ item.qty }}" readonly>
+              <button class="qty-btn" onclick="changeQty({{ item.id }}, 1)" {% if item.qty >= 99 %}disabled{% endif %} id="cplus-{{ item.id }}">+</button>
+            </div>
+          </td>
+          <td class="right" id="ctotal-{{ item.id }}">{% if item.price %}{{ item.line_total|floatformat:2 }}<br>BYN{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="confirm-totals">
+      <div class="totals-row">
         <span>Итого</span>
-        <span id="summary-total">{{ total|floatformat:"-2" }} BYN</span>
+        <span id="tSubtotal">{{ total|floatformat:2 }} BYN</span>
       </div>
-      <button class="btn-checkout" onclick="openCheckout()">Оформить заказ</button>
-      <p class="summary-note">Оплата при получении или по договорённости</p>
+      <div class="totals-row">
+        <span>Стоимость доставки</span>
+        <span id="tDelivery">{{ delivery_cost|floatformat:2 }} BYN</span>
+      </div>
+      <div class="totals-row grand">
+        <span>Всего к оплате</span>
+        <span id="tTotal">{{ order_total|floatformat:2 }} BYN</span>
+      </div>
     </div>
+
+    <div class="agree-block">
+      <label>
+        <input type="checkbox" id="fAgree">
+        <span>Оформляя заказ, я подтверждаю своё согласие с <a href="/page/terms/" target="_blank"><strong>УСЛОВИЯМИ ИСПОЛЬЗОВАНИЯ САЙТА</strong></a> и <a href="/page/returns/" target="_blank"><strong>УСЛОВИЯМИ ВОЗВРАТА ТОВАРА</strong></a></span>
+      </label>
+    </div>
+
+    <div class="comment-block">
+      <label>Здесь Вы можете добавить дополнительную информацию для нас</label>
+      <textarea id="fComment" placeholder=""></textarea>
+    </div>
+
+    <button class="btn-place-order" onclick="placeOrder()">&#10004; ОФОРМИТЬ ЗАКАЗ</button>
   </div>
 
-  {% else %}
-  <div class="cart-layout">
-    <div class="empty-state">
-      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="1.5">
-        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/>
-      </svg>
-      <p>Корзина пуста</p>
-      <a href="/store/" class="btn-primary">Перейти в каталог</a>
-    </div>
+</div><!-- /.checkout-grid -->
+</div><!-- /#mainContent -->
+
+<!-- Успешное оформление -->
+<div class="success-wrap" id="successWrap" style="display:none">
+  <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2" style="margin-bottom:12px">
+    <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
+  </svg>
+
+  <!-- Сообщение при оплате наличными -->
+  <div id="successCash">
+    <h2>Спасибо за заказ!</h2>
+    <p>Мы свяжемся с вами в ближайшее время для подтверждения.</p>
   </div>
-  {% endif %}
+
+  <!-- Сообщение при оплате картой online -->
+  <div id="successCard" style="display:none">
+    <h2>Заказ успешно оформлен и отправлен на обработку</h2>
+    <p>После проверки и подтверждения заказа на указанный email будет отправлена ссылка для оплаты.</p>
+    <p>На этот же электронный адрес Вы будете получать уведомления об изменении статуса Вашего заказа.</p>
+    <p><strong>Спасибо за покупку!</strong></p>
+  </div>
+
+  <a href="/store/" class="btn-continue" style="margin-top:20px">Продолжить покупки</a>
 </div>
 
-<!-- Модалка оформления заказа -->
-<div class="modal-overlay" id="checkoutModal">
-  <div class="modal">
-    <button class="modal-close" onclick="closeCheckout()">×</button>
-    <div id="checkoutForm">
-      <h2>Оформление заказа</h2>
-      <div class="form-field">
-        <label for="customerName">Имя *</label>
-        <input type="text" id="customerName" placeholder="Ваше имя">
-      </div>
-      <div class="form-field">
-        <label for="customerPhone">Телефон *</label>
-        <input type="tel" id="customerPhone" placeholder="+375 (XX) XXX-XX-XX">
-      </div>
-      <div class="form-field">
-        <label for="customerComment">Комментарий к заказу</label>
-        <textarea id="customerComment" placeholder="Пожелания по букету, время доставки и т.д."></textarea>
-      </div>
-      <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeCheckout()">Отмена</button>
-        <button class="btn-submit" onclick="submitOrder()">Подтвердить</button>
-      </div>
-    </div>
-    <div class="success-state" id="successState" style="display:none">
-      <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#166534" stroke-width="2">
-        <circle cx="12" cy="12" r="10"/><polyline points="9 12 11 14 15 10"/>
-      </svg>
-      <h2>Спасибо за заказ!</h2>
-      <p>Мы свяжемся с вами в ближайшее время для подтверждения</p>
-      <a href="/store/" class="btn-primary">Продолжить покупки</a>
-    </div>
-  </div>
+{% else %}
+<div class="empty-cart">
+  <p>Корзина пуста</p>
+  <a href="/store/">Перейти в каталог</a>
 </div>
+{% endif %}
+
+</div><!-- /.checkout-wrap -->
 {% endblock %}
 
 {% block extra_scripts %}
 <script>
-  // Данные цен из Django (для пересчёта на клиенте)
-  const PRICES = {
-    {% for item in items %}
-    {{ item.id }}: {{ item.price }},
-    {% endfor %}
+(function() {
+  var PRICES = {
+    {% for item in items %}{{ item.id }}: {{ item.price|default:0|stringformat:"f" }},{% endfor %}
   };
-  const QTY = {
-    {% for item in items %}
-    {{ item.id }}: {{ item.qty }},
-    {% endfor %}
+  var QTY = {
+    {% for item in items %}{{ item.id }}: {{ item.qty }},{% endfor %}
   };
+  var DELIVERY_COST = {{ settings.delivery_cost|stringformat:"f" }};
+  var FREE_FROM = {{ settings.delivery_free_from|stringformat:"f" }};
 
   function csrfToken() {
-    return document.cookie.split('; ').reduce(function(acc, c) {
-      const [k, v] = c.split('=');
-      return k === 'csrftoken' ? decodeURIComponent(v) : acc;
+    return document.cookie.split('; ').reduce(function(a,c){
+      var p=c.split('='); return p[0]==='csrftoken'?decodeURIComponent(p[1]):a;
     }, '');
   }
 
-  function fmt(n) {
-    return parseFloat(n).toFixed(2).replace('.', ',') + ' BYN';
+  function fmt(n){ return parseFloat(n).toFixed(2) + ' BYN'; }
+
+  function getDeliveryType() {
+    var el = document.querySelector('[name=deliveryType]:checked');
+    return el ? el.value : 'delivery';
+  }
+  function getPickupStoreId() {
+    if (getDeliveryType() !== 'pickup') return null;
+    var sel = document.getElementById('pickupStoreSelect');
+    return sel ? (sel.value || null) : null;
   }
 
-  function recalcSummary() {
-    let total = 0;
-    let count = 0;
-    Object.keys(QTY).forEach(function(id) {
-      const qty = QTY[id];
-      if (qty > 0 && PRICES[id]) {
-        total += PRICES[id] * qty;
-        count += 1;
+  function onPickupStoreChange() {
+    var sel = document.getElementById('pickupStoreSelect');
+    var info = document.getElementById('pickupInfo');
+    var opt = sel ? sel.options[sel.selectedIndex] : null;
+    if (!opt || !opt.value) {
+      if (info) info.style.display = 'none';
+      return;
+    }
+    // Заполняем карточку магазина
+    document.getElementById('piName').textContent = opt.text;
+    document.getElementById('piAddr').textContent = opt.getAttribute('data-address') || '';
+    document.getElementById('piHours').textContent = opt.getAttribute('data-hours') || '';
+    if (info) info.style.display = 'block';
+  }
+
+  function updateDelivery() {
+    var dt = getDeliveryType();
+    var isDelivery = (dt === 'delivery');
+    var isPickup = (dt === 'pickup');
+
+    // Список точек самовывоза
+    var pickupWrap = document.getElementById('pickupSelectWrap');
+    if (pickupWrap) {
+      pickupWrap.style.display = isPickup ? 'block' : 'none';
+      if (!isPickup) {
+        var sel = document.getElementById('pickupStoreSelect');
+        if (sel) sel.value = '';
+        var info = document.getElementById('pickupInfo');
+        if (info) info.style.display = 'none';
       }
-    });
-    const summaryCount = document.getElementById('summary-count');
-    const summarySubtotal = document.getElementById('summary-subtotal');
-    const summaryTotal = document.getElementById('summary-total');
-    if (summaryCount) summaryCount.textContent = count;
-    if (summarySubtotal) summarySubtotal.textContent = fmt(total);
-    if (summaryTotal) summaryTotal.textContent = fmt(total);
+    }
+
+    // Блок деталей доставки (адрес, получатель, дата, время)
+    var deliveryWrap = document.getElementById('deliveryDetailsWrap');
+    if (deliveryWrap) {
+      deliveryWrap.style.display = isDelivery ? 'block' : 'none';
+    }
+
+    recalc();
   }
 
-  function updateBadge(cartCount) {
-    const badge = document.getElementById('cartBadge');
+  function recalc() {
+    var subtotal = 0;
+    Object.keys(QTY).forEach(function(id){
+      if (QTY[id] > 0 && PRICES[id]) subtotal += PRICES[id] * QTY[id];
+    });
+    var isDelivery = (getDeliveryType() === 'delivery');
+    var deliveryCost = isDelivery ? (subtotal < FREE_FROM ? DELIVERY_COST : 0) : 0;
+    document.getElementById('tSubtotal').textContent = fmt(subtotal);
+    document.getElementById('tDelivery').textContent = fmt(deliveryCost);
+    document.getElementById('tTotal').textContent = fmt(subtotal + deliveryCost);
+  }
+
+  // Глобальные функции (вызываются из onclick в HTML)
+  window.changeQty = changeQty;
+  window.removeItem = removeItem;
+  window.placeOrder = placeOrder;
+
+  function updateBadge(count) {
+    var badge = document.getElementById('cartBadge');
     if (!badge) return;
-    badge.textContent = cartCount;
-    badge.style.display = cartCount > 0 ? 'flex' : 'none';
+    badge.textContent = count;
+    badge.style.display = count > 0 ? 'flex' : 'none';
   }
 
   function changeQty(productId, delta) {
-    const current = QTY[productId] || 1;
-    const newQty = Math.max(1, Math.min(99, current + delta));
-    if (newQty === current) return;
-
+    var cur = QTY[productId] || 1;
+    var nq = Math.max(1, Math.min(99, cur + delta));
+    if (nq === cur) return;
     fetch('/cart/update/' + productId + '/', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
-      body: JSON.stringify({qty: newQty})
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (!data.ok) return;
-      QTY[productId] = newQty;
-      // Обновляем UI
-      const qtyEl = document.getElementById('qty-' + productId);
-      const qtyDisplay = document.querySelector('#item-' + productId + ' .qty-display');
-      const totalEl = document.getElementById('total-' + productId);
-      const minusBtn = document.getElementById('btn-minus-' + productId);
-      const plusBtn = document.getElementById('btn-plus-' + productId);
-      if (qtyEl) qtyEl.textContent = newQty;
-      if (qtyDisplay && PRICES[productId]) qtyDisplay.textContent = newQty;
-      if (totalEl && PRICES[productId]) totalEl.textContent = fmt(PRICES[productId] * newQty);
-      if (minusBtn) minusBtn.disabled = newQty <= 1;
-      if (plusBtn) plusBtn.disabled = newQty >= 99;
-      recalcSummary();
-      updateBadge(data.cart_count);
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+      body:JSON.stringify({qty:nq})
+    }).then(function(r){return r.json();}).then(function(d){
+      if (!d.ok) return;
+      QTY[productId] = nq;
+      var qEl = document.getElementById('cqty-'+productId);
+      var tEl = document.getElementById('ctotal-'+productId);
+      var mBtn = document.getElementById('cminus-'+productId);
+      var pBtn = document.getElementById('cplus-'+productId);
+      if (qEl) qEl.value = nq;
+      if (tEl && PRICES[productId]) tEl.innerHTML = (PRICES[productId]*nq).toFixed(2) + '<br>BYN';
+      if (mBtn) mBtn.disabled = nq <= 1;
+      if (pBtn) pBtn.disabled = nq >= 99;
+      recalc();
+      updateBadge(d.cart_count);
     });
   }
 
   function removeItem(productId) {
     fetch('/cart/remove/' + productId + '/', {
-      method: 'POST',
-      headers: {'X-CSRFToken': csrfToken()}
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (!data.ok) return;
-      const itemEl = document.getElementById('item-' + productId);
-      if (itemEl) itemEl.remove();
+      method:'POST',
+      headers:{'X-CSRFToken':csrfToken()}
+    }).then(function(r){return r.json();}).then(function(d){
+      if (!d.ok) return;
+      var row = document.getElementById('crow-'+productId);
+      if (row) row.remove();
       delete QTY[productId];
       delete PRICES[productId];
-      recalcSummary();
-      updateBadge(data.cart_count);
-
-      // Если корзина пуста — показываем заглушку
-      const remaining = Object.keys(QTY).length;
-      if (remaining === 0) {
-        location.reload();
-      }
+      recalc();
+      updateBadge(d.cart_count);
+      if (Object.keys(QTY).length === 0) location.reload();
     });
   }
 
-  function openCheckout() {
-    document.getElementById('checkoutModal').classList.add('open');
-    document.body.style.overflow = 'hidden';
-  }
+  function placeOrder() {
+    var name = (document.getElementById('fName').value||'').trim();
+    var phone = (document.getElementById('fPhone').value||'').trim();
+    var email = (document.getElementById('fEmail').value||'').trim();
 
-  function closeCheckout() {
-    document.getElementById('checkoutModal').classList.remove('open');
-    document.body.style.overflow = '';
-  }
-
-  function submitOrder() {
-    var name = document.getElementById('customerName').value.trim();
-    var phone = document.getElementById('customerPhone').value.trim();
-    var comment = document.getElementById('customerComment').value.trim();
-    if (!name || !phone) {
-      alert('Пожалуйста, заполните имя и телефон');
-      return;
+    if (!name) { alert('Укажите имя'); document.getElementById('fName').focus(); return; }
+    if (!phone) { alert('Укажите телефон'); document.getElementById('fPhone').focus(); return; }
+    if (!document.getElementById('fAgree').checked) {
+      alert('Подтвердите согласие с условиями'); return;
     }
-    var btn = document.querySelector('.btn-submit');
+
+    var dt = getDeliveryType();
+    var isDelivery = (dt === 'delivery');
+    var isPickup = (dt === 'pickup');
+    var pickup_store_id = getPickupStoreId();
+
+    if (isDelivery && !(document.getElementById('fAddress').value||'').trim()) {
+      alert('Укажите адрес доставки'); document.getElementById('fAddress').focus(); return;
+    }
+    if (isPickup && !pickup_store_id) {
+      alert('Выберите точку самовывоза');
+      document.getElementById('pickupStoreSelect').focus(); return;
+    }
+
+    var paymentType = (document.querySelector('[name=paymentType]:checked') || {}).value || 'cash';
+
+    var payload = {
+      customer_name: name,
+      customer_phone: phone,
+      customer_email: email,
+      recipient_name: (document.getElementById('fRecipientName').value||'').trim(),
+      recipient_phone: (document.getElementById('fRecipientPhone').value||'').trim(),
+      delivery_type: isDelivery ? 'delivery' : 'pickup',
+      pickup_store_id: pickup_store_id,
+      delivery_address: isDelivery ? (document.getElementById('fAddress').value||'').trim() : '',
+      delivery_date: isDelivery ? (document.getElementById('fDate').value||'').trim() : '',
+      delivery_time: isDelivery ? (document.getElementById('fTime').value||'').trim() : '',
+      payment_type: paymentType,
+      comment: (document.getElementById('fComment').value||'').trim(),
+    };
+
+    var btn = document.querySelector('.btn-place-order');
     btn.disabled = true;
     btn.textContent = 'Отправляем…';
 
     fetch('/cart/checkout/', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
-      body: JSON.stringify({name: name, phone: phone, comment: comment})
-    })
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      if (data.ok) {
-        document.getElementById('checkoutForm').style.display = 'none';
-        document.getElementById('successState').style.display = 'block';
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':csrfToken()},
+      body:JSON.stringify(payload)
+    }).then(function(r){return r.json();}).then(function(d){
+      if (d.ok) {
+        document.getElementById('mainContent').style.display = 'none';
+        document.getElementById('successWrap').style.display = 'block';
+        // Показываем нужный текст в зависимости от способа оплаты
+        if (payload.payment_type === 'card') {
+          document.getElementById('successCash').style.display = 'none';
+          document.getElementById('successCard').style.display = 'block';
+        } else {
+          document.getElementById('successCash').style.display = 'block';
+          document.getElementById('successCard').style.display = 'none';
+        }
         updateBadge(0);
       } else {
         btn.disabled = false;
-        btn.textContent = 'Подтвердить';
-        alert(data.error || 'Произошла ошибка. Попробуйте ещё раз.');
+        btn.textContent = '✔ ОФОРМИТЬ ЗАКАЗ';
+        alert(d.error || 'Произошла ошибка. Попробуйте ещё раз.');
       }
-    })
-    .catch(function() {
+    }).catch(function(){
       btn.disabled = false;
-      btn.textContent = 'Подтвердить';
+      btn.textContent = '✔ ОФОРМИТЬ ЗАКАЗ';
       alert('Ошибка соединения. Попробуйте ещё раз.');
     });
   }
 
-  // Закрыть модалку по клику на фон
-  document.getElementById('checkoutModal').addEventListener('click', function(e) {
-    if (e.target === this) closeCheckout();
+  // Регистрация слушателей — после объявления всех функций
+  document.querySelectorAll('[name=paymentType]').forEach(function(r){
+    r.addEventListener('change', function(){
+      document.getElementById('cardLogos').style.display = (r.value === 'card' && r.checked) ? 'block' : 'none';
+    });
   });
+  document.querySelectorAll('[name=deliveryType]').forEach(function(r){
+    r.addEventListener('change', updateDelivery);
+  });
+  var _pickupSel = document.getElementById('pickupStoreSelect');
+  if (_pickupSel) _pickupSel.addEventListener('change', onPickupStoreChange);
+
+  // Инициализация
+  updateDelivery();
+
+})(); // конец IIFE
 </script>
 {% endblock %}
