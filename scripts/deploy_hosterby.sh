@@ -5,6 +5,7 @@ APP_DIR="${APP_DIR:-$HOME/apps/buket}"
 BACKEND_DIR="${BACKEND_DIR:-$APP_DIR/backend}"
 BACKEND_ENV_FILE="${BACKEND_ENV_FILE:-$BACKEND_DIR/.env}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
+PASSENGER_RESTART_FILE="${PASSENGER_RESTART_FILE:-}"
 
 if [[ ! -d "$BACKEND_DIR" ]]; then
   echo "Backend directory not found: $BACKEND_DIR" >&2
@@ -35,6 +36,11 @@ pip install -r requirements.txt
 python "$DJANGO_MANAGE" check
 python "$DJANGO_MANAGE" migrate --noinput
 python "$DJANGO_MANAGE" collectstatic --noinput
+
+if [[ "${TELEGRAM_BOT_MODE:-}" == "webhook" && -n "${BOT_TOKEN:-}" ]]; then
+  python "$DJANGO_MANAGE" telegram_webhook --set
+fi
+
 deactivate
 
 BOT_DIR="${BOT_DIR:-$APP_DIR/telegram-bot}"
@@ -52,6 +58,11 @@ if [[ -d "$BOT_DIR" && -f "$BOT_DIR/requirements.txt" ]]; then
   python -m pip install --upgrade pip
   pip install -r requirements.txt
   deactivate
+fi
+
+if [[ -n "$PASSENGER_RESTART_FILE" ]]; then
+  mkdir -p "$(dirname "$PASSENGER_RESTART_FILE")"
+  touch "$PASSENGER_RESTART_FILE"
 fi
 
 if [[ -n "${POST_DEPLOY_COMMAND:-}" ]]; then

@@ -1,0 +1,128 @@
+name: Deploy to hoster.by
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+concurrency:
+  group: hosterby-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 30
+    env:
+      HOSTER_HOST: ${{ secrets.HOSTER_HOST }}
+      HOSTER_USER: ${{ secrets.HOSTER_USER }}
+      HOSTER_PORT: ${{ secrets.HOSTER_PORT }}
+      HOSTER_DEPLOY_PATH: ${{ secrets.HOSTER_DEPLOY_PATH }}
+      HOSTER_KNOWN_HOSTS: ${{ secrets.HOSTER_KNOWN_HOSTS }}
+      HOSTER_SSH_KEY: ${{ secrets.HOSTER_SSH_KEY }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run Django checks
+        working-directory: backend
+        env:
+          SECRET_KEY: ci-only-secret-key-change-me-on-server
+          DEBUG: "False"
+          ALLOWED_HOSTS: localhost,127.0.0.1,testserver,buket.by,www.buket.by
+          CSRF_TRUSTED_ORIGINS: https://buket.by,https://www.buket.by
+        run: python manage.py check
+
+      - name: Validate deploy secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in HOSTER_HOST HOSTER_USER HOSTER_SSH_KEY; do
+            if [[ -z "${!name:-}" ]]; then
+              echo "Missing required secret: $name" >&2
+              exit 1
+            fi
+          done
+
+      - name: Prepare SSH access
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$HOSTER_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+          if [[ -n "${HOSTER_KNOWN_HOSTS:-}" ]]; then
+            printf '%s\n' "$HOSTER_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "${HOSTER_PORT:-22}" -H "$HOSTER_HOST" > ~/.ssh/known_hosts
+          fi
+
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Ensure remote directory exists
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOY_PATH="${HOSTER_DEPLOY_PATH:-/var/www/buket}"
+          ssh -p "${HOSTER_PORT:-22}" -i ~/.ssh/id_ed25519 \
+            "$HOSTER_USER@$HOSTER_HOST" \
+            "mkdir -p '$DEPLOY_PATH'"
+
+      - name: Sync project to server
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOY_PATH="${HOSTER_DEPLOY_PATH:-/var/www/buket}"
+          PORT="${HOSTER_PORT:-22}"
+
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude '.idea/' \
+            --exclude '.claude/' \
+            --exclude 'deploy/' \
+            --exclude 'backend/.env' \
+            --exclude 'backend/.venv/' \
+            --exclude 'backend/venv/' \
+            --exclude 'backend/db.sqlite3' \
+            --exclude 'backend/media/' \
+            --exclude 'backend/staticfiles/' \
+            --exclude 'telegram-bot/.env' \
+            --exclude 'telegram-bot/.venv/' \
+            --exclude 'telegram-bot/venv/' \
+            --exclude 'telegram-bot/bot.log' \
+            --exclude '__pycache__/' \
+            --exclude '*.pyc' \
+            --exclude '*.log' \
+            --exclude '*.err.log' \
+            --exclude 'tmp_*.html' \
+            -e "ssh -p $PORT -i ~/.ssh/id_ed25519" \
+            ./ "$HOSTER_USER@$HOSTER_HOST:$DEPLOY_PATH/"
+
+      - name: Run remote deploy script
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOY_PATH="${HOSTER_DEPLOY_PATH:-/var/www/buket}"
+          ssh -p "${HOSTER_PORT:-22}" -i ~/.ssh/id_ed25519 \
+            "$HOSTER_USER@$HOSTER_HOST" \
+            "APP_DIR='$DEPLOY_PATH' bash '$DEPLOY_PATH/scripts/deploy_hosterby.sh'"
