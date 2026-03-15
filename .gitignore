@@ -52,3 +52,7 @@ Thumbs.db
 # Old / temp
 /old/
 nul
+
+# Large archives
+*.zip
+deploy/
