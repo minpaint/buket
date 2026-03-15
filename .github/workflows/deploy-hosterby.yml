@@ -48,7 +48,11 @@ jobs:
           DEBUG: "False"
           ALLOWED_HOSTS: localhost,127.0.0.1,testserver,buket.by,www.buket.by
           CSRF_TRUSTED_ORIGINS: https://buket.by,https://www.buket.by
-        run: python manage.py check
+          BOT_AUTOSTART: "false"
+          TELEGRAM_BOT_MODE: webhook
+        run: |
+          python -c "import sys, django; print(sys.version); print('Django', django.get_version())"
+          python manage.py check --traceback -v 2
 
       - name: Validate deploy secrets
         shell: bash
