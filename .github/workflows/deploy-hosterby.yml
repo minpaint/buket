@@ -63,25 +63,34 @@ jobs:
           set -euo pipefail
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "$HOSTER_SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
+
+          # Записать ключ, сохраняя переносы строк
+          echo "$HOSTER_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+          # Диагностика — показать тип ключа (не раскрывает содержимое)
+          head -1 ~/.ssh/deploy_key
+          ssh-keygen -l -f ~/.ssh/deploy_key || echo "Key fingerprint failed"
 
           if [[ -n "${HOSTER_KNOWN_HOSTS:-}" ]]; then
             printf '%s\n' "$HOSTER_KNOWN_HOSTS" > ~/.ssh/known_hosts
           else
-            ssh-keyscan -p "${HOSTER_PORT:-22}" -H "$HOSTER_HOST" > ~/.ssh/known_hosts
+            ssh-keyscan -p "${HOSTER_PORT:-22}" -H "$HOSTER_HOST" > ~/.ssh/known_hosts 2>&1
+            echo "ssh-keyscan exit: $?"
           fi
 
           chmod 644 ~/.ssh/known_hosts
+          wc -l ~/.ssh/known_hosts
 
       - name: Ensure remote directory exists
         shell: bash
         run: |
           set -euo pipefail
           DEPLOY_PATH="${HOSTER_DEPLOY_PATH:-/var/www/buket}"
-          ssh -p "${HOSTER_PORT:-22}" -i ~/.ssh/id_ed25519 \
+          ssh -v -o StrictHostKeyChecking=no \
+            -p "${HOSTER_PORT:-22}" -i ~/.ssh/deploy_key \
             "$HOSTER_USER@$HOSTER_HOST" \
-            "mkdir -p '$DEPLOY_PATH'"
+            "mkdir -p '$DEPLOY_PATH'" 2>&1 | tail -30
 
       - name: Sync project to server
         shell: bash
@@ -111,7 +120,7 @@ jobs:
             --exclude '*.log' \
             --exclude '*.err.log' \
             --exclude 'tmp_*.html' \
-            -e "ssh -p $PORT -i ~/.ssh/id_ed25519" \
+            -e "ssh -p $PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
             ./ "$HOSTER_USER@$HOSTER_HOST:$DEPLOY_PATH/"
 
       - name: Run remote deploy script
@@ -119,6 +128,7 @@ jobs:
         run: |
           set -euo pipefail
           DEPLOY_PATH="${HOSTER_DEPLOY_PATH:-/var/www/buket}"
-          ssh -p "${HOSTER_PORT:-22}" -i ~/.ssh/id_ed25519 \
+          ssh -o StrictHostKeyChecking=no \
+            -p "${HOSTER_PORT:-22}" -i ~/.ssh/deploy_key \
             "$HOSTER_USER@$HOSTER_HOST" \
             "APP_DIR='$DEPLOY_PATH' bash '$DEPLOY_PATH/scripts/deploy_hosterby.sh'"
