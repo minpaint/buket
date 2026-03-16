@@ -22,7 +22,7 @@ jobs:
           host: ${{ secrets.HOSTER_HOST }}
           username: ${{ secrets.HOSTER_USER }}
           key: ${{ secrets.HOSTER_SSH_KEY }}
-          port: ${{ secrets.HOSTER_PORT }}
+          port: 22
           script: |
             set -e
             cd ${{ secrets.HOSTER_DEPLOY_PATH }}
