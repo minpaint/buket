@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - master
   workflow_dispatch:
 
 concurrency:
@@ -14,121 +13,35 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     timeout-minutes: 30
-    env:
-      HOSTER_HOST: ${{ secrets.HOSTER_HOST }}
-      HOSTER_USER: ${{ secrets.HOSTER_USER }}
-      HOSTER_PORT: ${{ secrets.HOSTER_PORT }}
-      HOSTER_DEPLOY_PATH: ${{ secrets.HOSTER_DEPLOY_PATH }}
-      HOSTER_KNOWN_HOSTS: ${{ secrets.HOSTER_KNOWN_HOSTS }}
-      HOSTER_SSH_KEY: ${{ secrets.HOSTER_SSH_KEY }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
         with:
-          python-version: "3.12"
-          cache: "pip"
-          cache-dependency-path: backend/requirements.txt
+          host: ${{ secrets.HOSTER_HOST }}
+          username: ${{ secrets.HOSTER_USER }}
+          key: ${{ secrets.HOSTER_SSH_KEY }}
+          port: ${{ secrets.HOSTER_PORT }}
+          script: |
+            set -e
+            cd ${{ secrets.HOSTER_DEPLOY_PATH }}
 
-      - name: Install backend dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt
+            # Обновить код
+            git pull origin main
 
-      - name: Local Django smoke check
-        working-directory: backend
-        run: |
-          python -c "import sys, django; print(sys.version); print('Django', django.get_version())"
+            # Установить/обновить зависимости
+            source /home/buketby/virtualenv/public_html/myapp/backend/3.13/bin/activate
+            pip install -q -r backend/requirements.txt
 
-      - name: Validate deploy secrets
-        shell: bash
-        run: |
-          set -euo pipefail
-          for name in HOSTER_HOST HOSTER_USER HOSTER_SSH_KEY; do
-            if [[ -z "${!name:-}" ]]; then
-              echo "Missing required secret: $name" >&2
-              exit 1
-            fi
-          done
+            # Миграции и статика
+            cd backend
+            python manage.py migrate --noinput
+            python manage.py collectstatic --noinput
+            cd ..
 
-      - name: Prepare SSH access
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
+            # Перезапустить Passenger
+            mkdir -p backend/tmp
+            touch backend/tmp/restart.txt
 
-          # Записать ключ, сохраняя переносы строк
-          echo "$HOSTER_SSH_KEY" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-
-          # Диагностика — показать тип ключа (не раскрывает содержимое)
-          head -1 ~/.ssh/deploy_key
-          ssh-keygen -l -f ~/.ssh/deploy_key || echo "Key fingerprint failed"
-
-          if [[ -n "${HOSTER_KNOWN_HOSTS:-}" ]]; then
-            printf '%s\n' "$HOSTER_KNOWN_HOSTS" > ~/.ssh/known_hosts
-          else
-            ssh-keyscan -p "${HOSTER_PORT:-22}" -H "$HOSTER_HOST" > ~/.ssh/known_hosts 2>&1
-            echo "ssh-keyscan exit: $?"
-          fi
-
-          chmod 644 ~/.ssh/known_hosts
-          wc -l ~/.ssh/known_hosts
-
-      - name: Ensure remote directory exists
-        shell: bash
-        run: |
-          set -euo pipefail
-          DEPLOY_PATH="${HOSTER_DEPLOY_PATH:-/var/www/buket}"
-          ssh -v -o StrictHostKeyChecking=no \
-            -p "${HOSTER_PORT:-22}" -i ~/.ssh/deploy_key \
-            "$HOSTER_USER@$HOSTER_HOST" \
-            "mkdir -p '$DEPLOY_PATH'" 2>&1 | tail -30
-
-      - name: Sync project to server
-        shell: bash
-        run: |
-          set -euo pipefail
-          DEPLOY_PATH="${HOSTER_DEPLOY_PATH:-/var/www/buket}"
-          PORT="${HOSTER_PORT:-22}"
-
-          rsync -az --delete \
-            --exclude '.git/' \
-            --exclude '.github/' \
-            --exclude '.idea/' \
-            --exclude '.claude/' \
-            --exclude 'deploy/' \
-            --exclude 'backend/.env' \
-            --exclude 'backend/.venv/' \
-            --exclude 'backend/venv/' \
-            --exclude 'backend/db.sqlite3' \
-            --exclude 'backend/media/' \
-            --exclude 'backend/staticfiles/' \
-            --exclude 'telegram-bot/.env' \
-            --exclude 'telegram-bot/.venv/' \
-            --exclude 'telegram-bot/venv/' \
-            --exclude 'telegram-bot/bot.log' \
-            --exclude '__pycache__/' \
-            --exclude '*.pyc' \
-            --exclude '*.log' \
-            --exclude '*.err.log' \
-            --exclude 'tmp_*.html' \
-            -e "ssh -p $PORT -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-            ./ "$HOSTER_USER@$HOSTER_HOST:$DEPLOY_PATH/"
-
-      - name: Run remote deploy script
-        shell: bash
-        run: |
-          set -euo pipefail
-          DEPLOY_PATH="${HOSTER_DEPLOY_PATH:-/var/www/buket}"
-          ssh -o StrictHostKeyChecking=no \
-            -p "${HOSTER_PORT:-22}" -i ~/.ssh/deploy_key \
-            "$HOSTER_USER@$HOSTER_HOST" \
-            "APP_DIR='$DEPLOY_PATH' bash '$DEPLOY_PATH/scripts/deploy_hosterby.sh'"
+            echo "Deploy done"
