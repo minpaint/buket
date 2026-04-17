@@ -501,6 +501,16 @@ class BotAuthView(APIView):
         if not telegram_id:
             return Response({'detail': 'telegram_id is required'}, status=400)
 
+        if getattr(settings, 'TELEGRAM_BOT_ALLOW_ALL_USERS', False):
+            stores = Store.objects.filter(is_active=True).order_by('sort_order', 'name')
+            return Response({
+                'telegram_id': telegram_id,
+                'telegram_username': '',
+                'full_name': 'Временный общий доступ',
+                'is_active': True,
+                'stores': StoreSerializer(stores, many=True).data,
+            }, status=200)
+
         manager = StoreManager.objects.filter(telegram_id=telegram_id, is_active=True).first()
         if not manager:
             return Response({'detail': 'Unauthorized'}, status=403)

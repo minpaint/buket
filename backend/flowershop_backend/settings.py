@@ -209,6 +209,7 @@ else:
 # ── Telegram ───────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.getenv('BOT_TOKEN', '').strip()
 TELEGRAM_BOT_SECRET = os.getenv('TELEGRAM_BOT_SECRET', os.getenv('BOT_SECRET', '')).strip()
+TELEGRAM_BOT_ALLOW_ALL_USERS = os.getenv('TELEGRAM_BOT_ALLOW_ALL_USERS', 'False') == 'True'
 TELEGRAM_BOT_MODE = os.getenv('TELEGRAM_BOT_MODE', 'polling').strip().lower()
 TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET', TELEGRAM_BOT_SECRET).strip()
 TELEGRAM_WEBHOOK_URL = os.getenv('TELEGRAM_WEBHOOK_URL', '').strip()

@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.conf import settings
 from django.contrib.auth.password_validation import validate_password
 from django.utils.text import slugify
 from rest_framework import serializers
@@ -59,6 +60,10 @@ class BotProductCreateSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         telegram_id = attrs.get('telegram_id')
         store = attrs.get('store_id')
+        if getattr(settings, 'TELEGRAM_BOT_ALLOW_ALL_USERS', False):
+            attrs['_manager'] = None
+            return attrs
+
         manager = StoreManager.objects.filter(telegram_id=telegram_id, is_active=True).first()
         if not manager:
             raise serializers.ValidationError({'telegram_id': 'Пользователь не авторизован.'})
@@ -71,8 +76,9 @@ class BotProductCreateSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data.pop('telegram_id', None)
         store = validated_data.pop('store_id')
-        manager = validated_data.pop('_manager')
-        validated_data['created_by'] = manager
+        manager = validated_data.pop('_manager', None)
+        if manager is not None:
+            validated_data['created_by'] = manager
         validated_data['is_online_showcase'] = True
         validated_data['is_published'] = True
 
