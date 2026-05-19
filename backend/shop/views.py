@@ -58,6 +58,10 @@ def home_page(request):
         ends_ok = banner.ends_on is None or banner.ends_on >= today
         if starts_ok and ends_ok:
             active_banners.append(banner)
+    if not active_banners:
+        default_banner = HeroBanner.objects.filter(is_default=True).order_by("sort_order").first()
+        if default_banner:
+            active_banners = [default_banner]
 
     active_stores = Store.objects.filter(is_active=True).order_by("sort_order", "name")
     store_showcases = []
@@ -1245,6 +1249,7 @@ def dashboard_hero(request):
             'ends_on': b.ends_on.isoformat() if b.ends_on else '',
             'sort_order': b.sort_order,
             'is_active': b.is_active,
+            'is_default': b.is_default,
         })
     categories = list(
         Category.objects.order_by('sort_order', 'name').values('id', 'name', 'slug', 'parent_id')
@@ -1557,10 +1562,14 @@ def dash_api_banner_create(request):
         return JsonResponse({'ok': False, 'error': 'Загрузите desktop изображение'}, status=400)
 
     is_active_value = str(data.get('is_active', True)).lower() in ('1', 'true', 'yes', 'on')
+    is_default_value = str(data.get('is_default', False)).lower() in ('1', 'true', 'yes', 'on')
     try:
         sort_order_value = int(data.get('sort_order', 0))
     except Exception:
         sort_order_value = 0
+
+    if is_default_value:
+        HeroBanner.objects.filter(is_default=True).update(is_default=False)
 
     banner = HeroBanner(
         name=data['name'],
@@ -1572,6 +1581,7 @@ def dash_api_banner_create(request):
         desktop_image=data.get('desktop_image', ''),
         sort_order=sort_order_value,
         is_active=is_active_value,
+        is_default=is_default_value,
     )
     if mobile_image:
         banner.mobile_image = mobile_image
@@ -1609,10 +1619,14 @@ def dash_api_banner_save(request, banner_id):
         return JsonResponse({'ok': False, 'error': 'Название обязательно'}, status=400)
 
     is_active_value = str(data.get('is_active', True)).lower() in ('1', 'true', 'yes', 'on')
+    is_default_value = str(data.get('is_default', False)).lower() in ('1', 'true', 'yes', 'on')
     try:
         sort_order_value = int(data.get('sort_order', 0))
     except Exception:
         sort_order_value = 0
+
+    if is_default_value:
+        HeroBanner.objects.filter(is_default=True).exclude(id=banner.id).update(is_default=False)
 
     banner.name = data['name']
     banner.title = data.get('title', '')
@@ -1634,6 +1648,7 @@ def dash_api_banner_save(request, banner_id):
 
     banner.sort_order = sort_order_value
     banner.is_active = is_active_value
+    banner.is_default = is_default_value
     banner.starts_on = None
     banner.ends_on = None
     if data.get('starts_on'):

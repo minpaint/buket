@@ -46,6 +46,7 @@
       </div>
       <div class="banner-actions">
         {% if b.is_active %}<span class="badge badge-green">Активен</span>{% else %}<span class="badge badge-gray">Скрыт</span>{% endif %}
+        {% if b.is_default %}<span class="badge" style="background:#fef3c7;color:#92400e">Фолбэк</span>{% endif %}
         <button class="btn btn-secondary btn-sm" style="margin-left:auto" onclick="editBanner({{ b.id }})">Редактировать</button>
         <button class="btn btn-danger btn-sm btn-icon" onclick="deleteBanner({{ b.id }})" title="Удалить">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
@@ -89,10 +90,14 @@
     </div>
     <div class="form-grid">
       <div class="form-row"><label>Порядок</label><input type="number" id="bSortOrder" value="0" min="0"></div>
-      <div class="form-row" style="justify-content:flex-end;display:flex;align-items:flex-end">
+      <div class="form-row" style="display:flex;flex-direction:column;gap:8px;justify-content:flex-end">
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px">
           <input type="checkbox" id="bIsActive" checked style="width:16px;height:16px;accent-color:var(--PrimaryDark)">
           Активен
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px" title="Показывать когда нет ни одного активного баннера">
+          <input type="checkbox" id="bIsDefault" style="width:16px;height:16px;accent-color:#d97706">
+          Фолбэк (когда нет активных)
         </label>
       </div>
     </div>
@@ -165,6 +170,7 @@
     document.getElementById('bEndsOn').value = data ? (data.ends_on || '') : '';
     document.getElementById('bSortOrder').value = data ? (data.sort_order || 0) : 0;
     document.getElementById('bIsActive').checked = data ? !!data.is_active : true;
+    document.getElementById('bIsDefault').checked = data ? !!data.is_default : false;
     document.getElementById('bannerModal').classList.add('open');
     document.body.style.overflow = 'hidden';
   }
@@ -192,6 +198,7 @@
     payload.append('ends_on', document.getElementById('bEndsOn').value || '');
     payload.append('sort_order', String(parseInt(document.getElementById('bSortOrder').value) || 0));
     payload.append('is_active', document.getElementById('bIsActive').checked ? 'true' : 'false');
+    payload.append('is_default', document.getElementById('bIsDefault').checked ? 'true' : 'false');
     var desktopFile = document.getElementById('bDesktopImage').files[0];
     var mobileFile = document.getElementById('bMobileImage').files[0];
     if (desktopFile) payload.append('desktop_image', desktopFile);

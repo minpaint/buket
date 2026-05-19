@@ -307,6 +307,11 @@ class HeroBanner(models.Model):
     desktop_image = models.ImageField(upload_to='hero_banners/', verbose_name='Изображение desktop')
     mobile_image = models.ImageField(upload_to='hero_banners/', blank=True, null=True, verbose_name='Изображение mobile')
     is_active = models.BooleanField(default=True, verbose_name='Активен')
+    is_default = models.BooleanField(
+        default=False,
+        verbose_name='Фолбэк',
+        help_text='Показывать когда нет активных баннеров',
+    )
     starts_on = models.DateField(null=True, blank=True, verbose_name='Дата начала')
     ends_on = models.DateField(null=True, blank=True, verbose_name='Дата окончания')
     sort_order = models.PositiveIntegerField(default=0, verbose_name='Приоритет')
