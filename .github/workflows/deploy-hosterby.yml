@@ -28,8 +28,8 @@ jobs:
             cd ${{ secrets.HOSTER_DEPLOY_PATH }}
 
             # Обновить код
-            git stash
-            git pull origin main
+            git fetch origin
+            git reset --hard origin/main
 
             # Установить/обновить зависимости
             source /home/buketby/virtualenv/public_html/myapp/backend/3.13/bin/activate
