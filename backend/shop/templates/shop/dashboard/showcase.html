@@ -87,10 +87,15 @@
 {% if all_stores %}
 <div class="store-tabs">
   {% for store in all_stores %}
-  <a href="?store={{ store.id }}" class="store-tab {% if selected_store and selected_store.id == store.id %}active{% endif %}">{{ store.name }}</a>
+  <a href="?store={{ store.id }}&section={{ selected_section }}" class="store-tab {% if selected_store and selected_store.id == store.id %}active{% endif %}">{{ store.name }}</a>
   {% endfor %}
 </div>
 {% endif %}
+
+<div class="store-tabs" style="margin-top:-10px">
+  <a href="?{% if selected_store %}store={{ selected_store.id }}&{% endif %}section=" class="store-tab {% if selected_section == '' %}active{% endif %}">🌸 Основная витрина</a>
+  <a href="?{% if selected_store %}store={{ selected_store.id }}&{% endif %}section=plants" class="store-tab {% if selected_section == 'plants' %}active{% endif %}">🪴 Комнатные растения</a>
+</div>
 
 <div class="showcase-layout">
   <!-- Левая: список витрины -->
@@ -156,6 +161,7 @@
 {% block extra_scripts %}
 <script>
   var SELECTED_STORE_ID = {% if selected_store %}{{ selected_store.id }}{% else %}0{% endif %};
+  var SELECTED_SECTION = '{{ selected_section|escapejs }}';
 
   // Умное позиционирование превью левой панели: сверху или снизу
   document.addEventListener('mouseover', function(e) {
@@ -217,7 +223,7 @@
     fetch('/dashboard/api/product/' + id + '/showcase/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
-      body: JSON.stringify({value: true, store_id: SELECTED_STORE_ID})
+      body: JSON.stringify({value: true, store_id: SELECTED_STORE_ID, section: SELECTED_SECTION})
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -230,7 +236,7 @@
     fetch('/dashboard/api/product/' + id + '/showcase/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
-      body: JSON.stringify({value: false, store_id: SELECTED_STORE_ID})
+      body: JSON.stringify({value: false, store_id: SELECTED_STORE_ID, section: SELECTED_SECTION})
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -251,7 +257,7 @@
     fetch('/dashboard/api/showcase/order/', {
       method: 'POST',
       headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrfToken()},
-      body: JSON.stringify({items: items, store_id: SELECTED_STORE_ID})
+      body: JSON.stringify({items: items, store_id: SELECTED_STORE_ID, section: SELECTED_SECTION})
     })
     .then(function(r) { return r.json(); })
     .then(function(data) {

@@ -59,18 +59,11 @@ def home_page(request):
         if starts_ok and ends_ok:
             active_banners.append(banner)
 
-    # Витрины по магазинам через ShowcaseItem
     active_stores = Store.objects.filter(is_active=True).order_by("sort_order", "name")
     store_showcases = []
-    for store in active_stores:
-        items_qs = list(
-            ShowcaseItem.objects.filter(store=store, product__is_published=True)
-            .select_related('product')
-            .order_by("sort_order", "-id")[:8]
-        )
-        if not items_qs:
-            continue
-        cards = [
+
+    def _make_showcase_cards(items_qs):
+        return [
             {
                 "id": item.product.id,
                 "slug": item.product.slug,
@@ -82,12 +75,26 @@ def home_page(request):
             }
             for item in items_qs
         ]
+
+    for store in active_stores:
+        main_items = list(
+            ShowcaseItem.objects.filter(store=store, section='', product__is_published=True)
+            .select_related('product')
+            .order_by("sort_order", "-id")[:8]
+        )
+        plant_items = list(
+            ShowcaseItem.objects.filter(store=store, section='plants', product__is_published=True)
+            .select_related('product')
+            .order_by("sort_order", "-id")[:8]
+        )
+        if not main_items and not plant_items:
+            continue
         store_showcases.append({
             "store": store,
-            "cards": cards,
+            "cards": _make_showcase_cards(main_items),
+            "plant_cards": _make_showcase_cards(plant_items),
         })
 
-    # Единая витрина (fallback) — все магазины вместе, если нет разбивки
     showcase_products = list(
         Product.objects.filter(is_online_showcase=True, is_published=True)
         .select_related("category")
@@ -160,7 +167,6 @@ def store_page(request):
             return parsed.path
         return raw_url
 
-    # 301 редиректы с query-param URLs на ЧПУ
     category_name = (request.GET.get("category") or "").strip()
     flower_tag_name = (request.GET.get("flower_tag") or "").strip()
     if category_name:
@@ -224,7 +230,6 @@ def store_page_category(request, slug):
         return raw_url
 
     cat = get_object_or_404(Category, slug=slug)
-    # Собираем ID: сама категория + все дочерние
     child_ids = list(cat.children.values_list("id", flat=True))
     cat_ids = [cat.id] + child_ids
 
@@ -233,7 +238,6 @@ def store_page_category(request, slug):
         .filter(Q(category__id__in=cat_ids) | Q(categories__id__in=cat_ids))\
         .distinct().order_by("-id")
 
-    # Дополнительный фильтр по цветку (комбинированный)
     flower_slug = (request.GET.get("flower_tag_slug") or "").strip()
     selected_flower_tag = ""
     selected_flower_slug = ""
@@ -316,13 +320,11 @@ def product_page(request, slug):
 
 
 def product_page_by_id(request, product_id):
-    """301 редирект со старого /store/<id>/ на /store/<slug>/"""
     product = get_object_or_404(Product, id=product_id, is_published=True)
     return redirect(f'/store/{product.slug}/', permanent=True)
 
 
 def old_product_redirect(request, slug):
-    """301 редирект со старого /katalog/<slug>.html на /store/<slug>/"""
     product = get_object_or_404(Product, slug=slug, is_published=True)
     return redirect(f'/store/{product.slug}/', permanent=True)
 
@@ -401,13 +403,11 @@ def sitemap_xml(request):
 
 
 def error_404(request, exception=None):
-    """Кастомная страница 404."""
     from django.shortcuts import render as _render
     return _render(request, '404.html', status=404)
 
 
 def error_500(request):
-    """Кастомная страница 500."""
     from django.shortcuts import render as _render
     return _render(request, '500.html', status=500)
 
@@ -583,7 +583,6 @@ def hero_banner_current(request):
     return Response(serializer.data, status=200)
 
 
-# SIGN_UP AND LOGIN
 class RegisterView(CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (AllowAny,)
@@ -603,10 +602,14 @@ class UserProfileViewSet(RetrieveUpdateAPIView):
         return self.request.user
 
 
-# ─── КОРЗИНА (сессии, гостевая) ───────────────────────────────────────────────
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout, update_session_auth_hash, authenticate, login as auth_login
+from django.contrib import messages
+from django.core.files.storage import default_storage
+import decimal
+
 
 def _get_cart(request):
-    """Вернуть корзину из сессии: {str(product_id): qty}"""
     return request.session.get('cart', {})
 
 
@@ -622,7 +625,6 @@ def _normalize_public_url(raw_url, request=None):
         return raw_url
     parsed = urlsplit(raw_url)
     if parsed.scheme and parsed.netloc and parsed.path:
-        # Берём только путь — работает на любом домене/порту
         return parsed.path
     return raw_url
 
@@ -636,7 +638,6 @@ def _product_image_url(product, request):
 
 
 def cart_page(request):
-    """Страница корзины."""
     cart = _get_cart(request)
     settings_obj = SiteSettings.get()
     stores = Store.objects.filter(is_active=True).order_by('sort_order', 'name')
@@ -669,7 +670,6 @@ def cart_page(request):
             'line_total': line_total,
         })
 
-    import decimal
     delivery_cost = settings_obj.delivery_cost if total < settings_obj.delivery_free_from else decimal.Decimal('0')
 
     return render(request, 'shop/cart.html', {
@@ -684,7 +684,6 @@ def cart_page(request):
 
 @require_POST
 def cart_add(request, product_id):
-    """Добавить товар в корзину или увеличить количество."""
     product = get_object_or_404(Product, id=product_id, is_published=True)
     cart = _get_cart(request)
     key = str(product_id)
@@ -695,7 +694,6 @@ def cart_add(request, product_id):
 
 @require_POST
 def cart_update(request, product_id):
-    """Установить конкретное количество товара."""
     try:
         data = json.loads(request.body)
         qty = int(data.get('qty', 1))
@@ -714,7 +712,6 @@ def cart_update(request, product_id):
 
 @require_POST
 def cart_remove(request, product_id):
-    """Удалить товар из корзины."""
     cart = _get_cart(request)
     cart.pop(str(product_id), None)
     _save_cart(request, cart)
@@ -722,13 +719,11 @@ def cart_remove(request, product_id):
 
 
 def cart_count(request):
-    """Вернуть общее кол-во позиций в корзине (для бейджа в хедере)."""
     cart = _get_cart(request)
     return JsonResponse({'cart_count': sum(cart.values())})
 
 
 def cart_drawer(request):
-    """Вернуть данные корзины для мини-корзины (drawer) в формате JSON."""
     cart = _get_cart(request)
     if not cart:
         return JsonResponse({'items': [], 'cart_count': 0})
@@ -758,10 +753,6 @@ def _send_order_notifications(order_pk, notification_text, order_items_data,
                                pickup_store_name, pickup_store_address,
                                recipient_name, recipient_phone, comment,
                                payment_type, name, phone, email):
-    """
-    Отправляет email и Telegram-уведомление о заказе.
-    Вызывается в отдельном потоке, чтобы не блокировать ответ покупателю.
-    """
     import logging as _logging
     _log = _logging.getLogger(__name__)
 
@@ -770,7 +761,6 @@ def _send_order_notifications(order_pk, notification_text, order_items_data,
     if not order:
         return
 
-    # Email
     if settings_obj.notification_email:
         try:
             import smtplib
@@ -820,26 +810,26 @@ def _send_order_notifications(order_pk, notification_text, order_items_data,
                 delivery_row = f'<tr><td colspan="3" style="text-align:right;padding:4px 8px;color:#555;">Доставка:</td><td style="text-align:right;padding:4px 8px;">{delivery_cost:.2f} BYN</td></tr>'
 
             if delivery_type == 'delivery':
-                delivery_info = f'🚚 Доставка по адресу: <b>{delivery_address}</b>'
+                delivery_info = f'Доставка по адресу: <b>{delivery_address}</b>'
                 if pretty_datetime:
-                    delivery_info += f'<br>🕐 {pretty_datetime}'
+                    delivery_info += f'<br>{pretty_datetime}'
             else:
-                delivery_info = f'🏪 Самовывоз: <b>{pickup_store_name}</b>'
+                delivery_info = f'Самовывоз: <b>{pickup_store_name}</b>'
                 if pickup_store_address:
                     delivery_info += f'<br><span style="color:#555;font-size:12px;">{pickup_store_address}</span>'
 
             recipient_info = ''
             if recipient_name or recipient_phone:
-                recipient_info = f'<p>💐 Получатель: <b>{recipient_name} {recipient_phone}</b></p>'
+                recipient_info = f'<p>Получатель: <b>{recipient_name} {recipient_phone}</b></p>'
 
-            comment_info = f'<p>💬 <i>{comment}</i></p>' if comment else ''
+            comment_info = f'<p><i>{comment}</i></p>' if comment else ''
 
             html_body = f'''<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;color:#333;max-width:600px;margin:0 auto;">
-<h2 style="color:#2a5db0;border-bottom:2px solid #c8d8f0;padding-bottom:8px;">🌸 Новый заказ #{order.pk}</h2>
-<p>👤 <b>{name}</b> &nbsp;|&nbsp; 📞 {phone}{"&nbsp;|&nbsp;📧 "+email if email else ""}</p>
+<h2 style="color:#2a5db0;border-bottom:2px solid #c8d8f0;padding-bottom:8px;">Новый заказ #{order.pk}</h2>
+<p><b>{name}</b> | {phone}{" | "+email if email else ""}</p>
 <p>{delivery_info}</p>
 {recipient_info}
-<p>💳 Оплата: <b>{pay_label}</b></p>
+<p>Оплата: <b>{pay_label}</b></p>
 {comment_info}
 <table style="width:100%;border-collapse:collapse;margin-top:12px;">
   <thead>
@@ -895,17 +885,20 @@ def _send_order_notifications(order_pk, notification_text, order_items_data,
             if use_ssl:
                 import ssl as _ssl
                 with smtplib.SMTP_SSL(_host, _port, context=_ssl.create_default_context()) as srv:
-                    if _user: srv.login(_user, _pwd)
+                    if _user:
+                        srv.login(_user, _pwd)
                     srv.sendmail(_from, [_to], msg.as_string())
             else:
                 with smtplib.SMTP(_host, _port) as srv:
-                    srv.ehlo(); srv.starttls(); srv.ehlo()
-                    if _user: srv.login(_user, _pwd)
+                    srv.ehlo()
+                    srv.starttls()
+                    srv.ehlo()
+                    if _user:
+                        srv.login(_user, _pwd)
                     srv.sendmail(_from, [_to], msg.as_string())
         except Exception as e:
             _log.error('Email send error for order #%s: %s', order_pk, e)
 
-    # Telegram
     tg_token = settings_obj.telegram_notify_token
     tg_chat = settings_obj.telegram_notify_chat_id
     if tg_token and tg_chat:
@@ -926,7 +919,6 @@ def _send_order_notifications(order_pk, notification_text, order_items_data,
 
 @require_POST
 def cart_checkout(request):
-    """Оформить заказ: сохранить в БД, отправить email и Telegram."""
     try:
         data = json.loads(request.body)
     except json.JSONDecodeError:
@@ -943,11 +935,9 @@ def cart_checkout(request):
     delivery_date = (data.get('delivery_date') or '').strip()
     delivery_time = (data.get('delivery_time') or '').strip()
 
-    # Красивый формат даты и времени для уведомлений
     def _fmt_datetime(date_str, time_str):
-        """'2025-12-25' + '14:00' → '25 декабря 2025, 14:00'"""
-        months_ru = ['января','февраля','марта','апреля','мая','июня',
-                     'июля','августа','сентября','октября','ноября','декабря']
+        months_ru = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                     'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря']
         result = ''
         if date_str:
             try:
@@ -971,14 +961,12 @@ def cart_checkout(request):
     if not cart:
         return JsonResponse({'ok': False, 'error': 'Корзина пуста'}, status=400)
 
-    # Загружаем товары из БД
     product_ids = [int(k) for k in cart.keys()]
     products_map = {
         p.id: p
         for p in Product.objects.filter(id__in=product_ids, is_published=True)
     }
 
-    import decimal
     settings_obj = SiteSettings.get()
 
     subtotal = decimal.Decimal('0')
@@ -995,7 +983,6 @@ def cart_checkout(request):
     if not order_items_data:
         return JsonResponse({'ok': False, 'error': 'Корзина пуста'}, status=400)
 
-    # Стоимость доставки
     if delivery_type == 'delivery':
         delivery_cost = settings_obj.delivery_cost if subtotal < settings_obj.delivery_free_from else decimal.Decimal('0')
     else:
@@ -1003,7 +990,6 @@ def cart_checkout(request):
 
     total = subtotal + delivery_cost
 
-    # Магазин самовывоза
     pickup_store = None
     if delivery_type == 'pickup' and pickup_store_id:
         try:
@@ -1011,7 +997,6 @@ def cart_checkout(request):
         except (Store.DoesNotExist, ValueError):
             pass
 
-    # Сохраняем в БД атомарно — если что-то пойдёт не так, откатится всё
     from django.db import transaction as _transaction
     with _transaction.atomic():
         order = GuestOrder.objects.create(
@@ -1040,21 +1025,20 @@ def cart_checkout(request):
                 qty=item_data['qty'],
             )
 
-    # Формируем текст уведомления (plain-text для Telegram)
-    lines = [f'🌸 Новый заказ #{order.pk}']
-    lines.append(f'👤 {name} / {phone}')
+    lines = [f'Новый заказ #{order.pk}']
+    lines.append(f'{name} / {phone}')
     if email:
-        lines.append(f'📧 {email}')
+        lines.append(email)
     if delivery_type == 'delivery':
-        lines.append(f'🚚 Доставка: {delivery_address}')
+        lines.append(f'Доставка: {delivery_address}')
         if pretty_datetime:
-            lines.append(f'🕐 {pretty_datetime}')
+            lines.append(pretty_datetime)
     else:
         store_name = pickup_store.name if pickup_store else 'уточнить'
-        lines.append(f'🏪 Самовывоз: {store_name}')
+        lines.append(f'Самовывоз: {store_name}')
     if recipient_name or recipient_phone:
-        lines.append(f'💐 Получатель: {recipient_name} {recipient_phone}'.strip())
-    lines.append(f'💳 Оплата: {"Наличные" if payment_type == "cash" else "Картой online"}')
+        lines.append(f'Получатель: {recipient_name} {recipient_phone}'.strip())
+    lines.append(f'Оплата: {"Наличные" if payment_type == "cash" else "Картой online"}')
     lines.append('')
     for item_data in order_items_data:
         p = item_data['product']
@@ -1066,10 +1050,9 @@ def cart_checkout(request):
         lines.append(f'Доставка: {delivery_cost:.2f} BYN')
     lines.append(f'Итого: {total:.2f} BYN')
     if comment:
-        lines.append(f'\n💬 {comment}')
+        lines.append(f'\n{comment}')
     notification_text = '\n'.join(lines)
 
-    # Уведомления отправляем в фоновом потоке — не блокируем ответ покупателю
     import threading
     _t = threading.Thread(
         target=_send_order_notifications,
@@ -1086,22 +1069,10 @@ def cart_checkout(request):
     )
     _t.start()
 
-    # Сохраняем в сессии для страницы "спасибо"
     request.session['last_order'] = {'id': order.pk, 'name': name, 'phone': phone}
-
-    # Очищаем корзину
     _save_cart(request, {})
 
     return JsonResponse({'ok': True, 'order_id': order.pk})
-
-
-# ─── ДАШБОРД ─────────────────────────────────────────────────────────────────
-
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth import logout, update_session_auth_hash, authenticate, login as auth_login
-from django.contrib import messages
-from django.core.files.storage import default_storage
-import decimal
 
 
 def dashboard_login(request):
@@ -1120,8 +1091,7 @@ def dashboard_login(request):
             if has_access:
                 auth_login(request, user)
                 return redirect(request.GET.get('next', '/dashboard/products/'))
-            else:
-                error = 'Нет доступа к дашборду'
+            error = 'Нет доступа к дашборду'
         else:
             error = 'Неверный логин или пароль'
     return render(request, 'shop/dashboard/login.html', {'error': error})
@@ -1136,11 +1106,8 @@ def _dash_product_image(product, request):
 
 
 def _get_manager_stores(user):
-    """Возвращает queryset магазинов для пользователя.
-    Superuser/staff — все магазины (None = без ограничений).
-    Менеджер — только его магазины через StoreManager."""
     if user.is_superuser or user.is_staff:
-        return None  # без фильтра
+        return None
     try:
         sm = user.store_manager
         if sm.is_active:
@@ -1178,7 +1145,6 @@ def dashboard_product_form(request, product_id=None):
     manager_stores = _get_manager_stores(request.user)
     if product_id:
         product = get_object_or_404(Product, id=product_id)
-        # Менеджер не может редактировать чужие товары
         if manager_stores is not None:
             allowed_ids = set(manager_stores.values_list('id', flat=True))
             product_store_ids_check = set(product.stores.values_list('id', flat=True))
@@ -1261,7 +1227,6 @@ def dashboard_product_form(request, product_id=None):
 
 @login_required(login_url='/dashboard/login/')
 def dashboard_hero(request):
-    from django.core import serializers as dj_serializers
     import json as _json
     banners = HeroBanner.objects.order_by('sort_order', '-created_at')
     banners_data = []
@@ -1281,7 +1246,6 @@ def dashboard_hero(request):
             'sort_order': b.sort_order,
             'is_active': b.is_active,
         })
-    # Категории для быстрого выбора ссылки
     categories = list(
         Category.objects.order_by('sort_order', 'name').values('id', 'name', 'slug', 'parent_id')
     )
@@ -1296,12 +1260,10 @@ def dashboard_hero(request):
 @login_required(login_url='/dashboard/login/')
 def dashboard_showcase(request):
     manager_stores = _get_manager_stores(request.user)
-    is_admin = manager_stores is None  # суперадмин/staff видит все магазины
+    is_admin = manager_stores is None
 
-    # Полный список магазинов для табов (только для админа)
     all_stores = Store.objects.filter(is_active=True).order_by('sort_order', 'name') if is_admin else None
 
-    # Определяем активный магазин
     selected_store = None
     if is_admin:
         try:
@@ -1310,19 +1272,19 @@ def dashboard_showcase(request):
             store_id = 0
         if store_id:
             selected_store = Store.objects.filter(id=store_id, is_active=True).first()
-        # Если не выбран — берём первый
         if not selected_store and all_stores.exists():
             selected_store = all_stores.first()
         stores_qs = Store.objects.filter(id=selected_store.id) if selected_store else Store.objects.none()
     else:
-        # Менеджер — только его магазины
         stores_qs = manager_stores
         if stores_qs.exists():
             selected_store = stores_qs.first()
 
-    # Товары в витрине — через ShowcaseItem
+    selected_section = request.GET.get('section', '')
+
     showcase_items_qs = ShowcaseItem.objects.filter(
-        store__in=stores_qs
+        store__in=stores_qs,
+        section=selected_section,
     ).select_related('product', 'store').order_by('sort_order', '-id')
 
     showcase_products = []
@@ -1341,7 +1303,6 @@ def dashboard_showcase(request):
         })
         showcase_product_ids.add(p.id)
 
-    # Все товары для добавления (фильтруем по выбранному магазину)
     all_qs = Product.objects.filter(is_published=True).select_related('category').order_by('-id')
     if stores_qs:
         all_qs = all_qs.filter(stores__in=stores_qs).distinct()
@@ -1359,8 +1320,9 @@ def dashboard_showcase(request):
     return render(request, 'shop/dashboard/showcase.html', {
         'showcase_products': showcase_products,
         'all_products': all_products,
-        'all_stores': all_stores,           # для табов (только у админа)
-        'selected_store': selected_store,   # активный магазин
+        'all_stores': all_stores,
+        'selected_store': selected_store,
+        'selected_section': selected_section,
         'active': 'showcase'
     })
 
@@ -1450,8 +1412,6 @@ def dashboard_reviews(request):
     })
 
 
-# ─── DASHBOARD API (JSON endpoints) ──────────────────────────────────────────
-
 @login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_product_price(request, product_id):
@@ -1495,15 +1455,15 @@ def dash_api_product_showcase(request, product_id):
     except Exception:
         return JsonResponse({'ok': False, 'error': 'bad data'}, status=400)
 
+    section = data.get('section', '')
+
     if manager_stores is not None:
-        # Менеджер — добавляем/убираем ShowcaseItem только для его магазинов
         for store in manager_stores:
             if value:
-                ShowcaseItem.objects.get_or_create(store=store, product=product)
+                ShowcaseItem.objects.get_or_create(store=store, product=product, section=section)
             else:
-                ShowcaseItem.objects.filter(store=store, product=product).delete()
+                ShowcaseItem.objects.filter(store=store, product=product, section=section).delete()
     else:
-        # Суперюзер — работаем через ShowcaseItem с учётом store_id из запроса
         try:
             store_id = int(data.get('store_id', 0))
         except (TypeError, ValueError):
@@ -1512,11 +1472,10 @@ def dash_api_product_showcase(request, product_id):
             store = Store.objects.filter(id=store_id, is_active=True).first()
             if store:
                 if value:
-                    ShowcaseItem.objects.get_or_create(store=store, product=product)
+                    ShowcaseItem.objects.get_or_create(store=store, product=product, section=section)
                 else:
-                    ShowcaseItem.objects.filter(store=store, product=product).delete()
+                    ShowcaseItem.objects.filter(store=store, product=product, section=section).delete()
         else:
-            # Нет store_id — fallback на is_online_showcase
             product.is_online_showcase = value
             product.save(update_fields=['is_online_showcase'])
 
@@ -1558,18 +1517,21 @@ def dash_api_showcase_order(request):
         store_id = int(data.get('store_id', 0))
     except (TypeError, ValueError):
         store_id = 0
+    section = data.get('section', '')
+
     for item in items:
         if manager_stores is not None:
             ShowcaseItem.objects.filter(
                 product_id=item['id'],
-                store__in=manager_stores
+                store__in=manager_stores,
+                section=section,
             ).update(sort_order=item.get('sort', 0))
         else:
-            # Суперюзер — через ShowcaseItem с учётом store_id
             if store_id:
                 ShowcaseItem.objects.filter(
                     product_id=item['id'],
-                    store_id=store_id
+                    store_id=store_id,
+                    section=section,
                 ).update(sort_order=item.get('sort', 0))
             else:
                 Product.objects.filter(id=item['id']).update(showcase_sort_order=item.get('sort', 0))
@@ -1712,7 +1674,6 @@ def dashboard_ticker(request):
 @login_required(login_url='/dashboard/login/')
 @require_POST
 def dash_api_ticker_save(request):
-    """Создать или обновить строки тикера (принимает массив)."""
     if not (request.user.is_superuser or request.user.is_staff):
         return JsonResponse({'ok': False, 'error': 'forbidden'}, status=403)
     try:

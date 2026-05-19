@@ -530,6 +530,13 @@ class GuestOrderItem(models.Model):
 
 class ShowcaseItem(models.Model):
     """Товар в витрине конкретного магазина (независимо от is_online_showcase)."""
+    SECTION_MAIN = ''
+    SECTION_PLANTS = 'plants'
+    SECTION_CHOICES = [
+        ('', 'Основная витрина'),
+        ('plants', 'Комнатные растения'),
+    ]
+
     store = models.ForeignKey(
         Store,
         on_delete=models.CASCADE,
@@ -542,10 +549,14 @@ class ShowcaseItem(models.Model):
         related_name='showcase_items',
         verbose_name='Товар',
     )
+    section = models.CharField(
+        max_length=40, blank=True, default='',
+        choices=SECTION_CHOICES, verbose_name='Секция',
+    )
     sort_order = models.PositiveIntegerField(default=0, verbose_name='Порядок')
 
     class Meta:
-        unique_together = ('store', 'product')
+        unique_together = ('store', 'product', 'section')
         ordering = ('sort_order', '-id')
         verbose_name = 'Товар в витрине'
         verbose_name_plural = 'Товары в витринах'

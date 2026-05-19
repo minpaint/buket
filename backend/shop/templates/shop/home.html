@@ -120,6 +120,10 @@
   }
   .btn-see-all:hover{background:#e8f5e9}
   .showcase-divider{border:none;border-top:1px solid rgba(34,139,34,.12);margin:24px 0 0}
+  .store-plants-section{margin-top:20px}
+  .store-plants-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+  .store-plants-icon{font-size:20px}
+  .store-plants-title{font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;font-weight:600;color:var(--PrimaryDark)}
   @media(max-width:760px){
     .store-showcase-name,.store-showcase-addr{white-space:normal;text-overflow:unset;overflow:visible}
     .store-showcase-meta{align-items:flex-start}
@@ -286,6 +290,41 @@
             Смотреть всю витрину →
           </button>
           {% endif %}
+
+          {% if ss.plant_cards %}
+          <div class="store-plants-section">
+            <div class="store-plants-header">
+              <span class="store-plants-icon">🪴</span>
+              <span class="store-plants-title">Комнатные растения</span>
+            </div>
+            <div class="grid grid-4 showcase-grid" id="showcase-grid-{{ forloop.counter }}-plants">
+              {% for p in ss.plant_cards %}
+                <a class="product-card card showcase-card" href="{{ p.href }}">
+                  <div class="media">
+                    <img class="main" src="{{ p.image }}" alt="{{ p.title }}">
+                    <img class="hover" src="{{ p.hover_image }}" alt="{{ p.title }}">
+                    <span class="badge-instock">В наличии</span>
+                  </div>
+                  <div class="pad">
+                    <p class="name">{{ p.title }}</p>
+                    <div class="price-row">
+                      {% if p.price %}
+                        <p class="price-tag" style="margin:0">
+                          <span class="price-amount">{{ p.price|floatformat:"-2" }}</span>
+                          <span class="price-currency">BYN</span>
+                        </p>
+                      {% else %}
+                        <span class="price-undef">Цену уточняйте</span>
+                      {% endif %}
+                      <span class="order-btn">Купить</span>
+                    </div>
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
           {% if not forloop.last %}<hr class="showcase-divider">{% endif %}
         </div>
         {% endfor %}
