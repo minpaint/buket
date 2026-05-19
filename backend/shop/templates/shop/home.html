@@ -251,6 +251,7 @@
               <div class="store-showcase-texts">
                 <p class="store-showcase-name">{{ ss.store.name }}</p>
                 {% if ss.store.address %}<p class="store-showcase-addr">📍 {{ ss.store.address }}</p>{% endif %}
+                {% for ph in ss.store.phones.all %}<p class="store-showcase-addr">{{ ph.emoji }} {% if ph.label %}{{ ph.label }}: {% endif %}{{ ph.number }}</p>{% endfor %}
               </div>
             </div>
             <a class="btn-see-all" href="/store/?store={{ ss.store.id }}">Смотреть все →</a>

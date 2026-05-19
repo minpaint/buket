@@ -28,6 +28,7 @@ jobs:
             cd ${{ secrets.HOSTER_DEPLOY_PATH }}
 
             # Обновить код
+            git stash
             git pull origin main
 
             # Установить/обновить зависимости
