@@ -27,7 +27,9 @@ jobs:
           key: ${{ secrets.HOSTER_SSH_KEY }}
           port: 22
           script: |
-            set -Eeuo pipefail
+            # hoster.by system profile references optional variables such as
+            # SSH_USER, so nounset (-u) is incompatible with its login shell.
+            set -Eeo pipefail
 
             APP_ROOT="$HOME/www/buket.by"
             REPO_ROOT="$APP_ROOT/myapp"
