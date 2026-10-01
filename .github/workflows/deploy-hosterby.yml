@@ -23,69 +23,57 @@ jobs:
           # HOSTER_HOST secret now times out. The domain always resolves to
           # the active production server.
           host: buket.by
-          username: ${{ secrets.HOSTER_USER }}
+          username: h13592
           key: ${{ secrets.HOSTER_SSH_KEY }}
           port: 22
           script: |
             set -Eeuo pipefail
 
-            DEPLOY_ROOT="${{ secrets.HOSTER_DEPLOY_PATH }}"
-            BACKEND_DIR="$DEPLOY_ROOT/backend"
-            cd "$DEPLOY_ROOT"
+            APP_ROOT="$HOME/www/buket.by"
+            REPO_ROOT="$APP_ROOT/myapp"
+            SOURCE_BACKEND="$REPO_ROOT/backend"
+            PYTHON_BIN="$APP_ROOT/.venv/bin/python"
 
-            # Обновить код
-            git fetch origin
+            test -d "$REPO_ROOT/.git"
+            test -x "$PYTHON_BIN"
+
+            # Update the repository copy managed by GitHub.
+            cd "$REPO_ROOT"
+            git fetch origin main
             git reset --hard origin/main
 
-            # Панель hoster.by может пересоздать virtualenv при изменении корня сайта.
-            # Ищем актуальный Python вместо жёсткой привязки к старому public_html/myapp.
-            PYTHON_BIN=""
-            for candidate in \
-              /home/buketby/virtualenv/www/buket.by/3.13/bin/python \
-              /home/buketby/virtualenv/www/buket.by/backend/3.13/bin/python \
-              /home/buketby/virtualenv/public_html/myapp/backend/3.13/bin/python
-            do
-              if [[ -x "$candidate" ]]; then
-                PYTHON_BIN="$candidate"
-                break
-              fi
-            done
-
-            if [[ -z "$PYTHON_BIN" && -d /home/buketby/virtualenv ]]; then
-              PYTHON_BIN="$(find /home/buketby/virtualenv -type f -path '*/3.13/bin/python' 2>/dev/null | grep -E '/(buket\.by|myapp)/' | head -n 1 || true)"
-            fi
-
-            if [[ -z "$PYTHON_BIN" ]]; then
-              echo "Python 3.13 virtualenv for buket.by was not found." >&2
-              find /home/buketby/virtualenv -maxdepth 5 -type f -name python 2>/dev/null || true
-              exit 1
-            fi
-
+            # Install dependencies into the Python 3.13 environment selected
+            # in the hosting panel.
             echo "Using Python: $PYTHON_BIN"
             "$PYTHON_BIN" -m pip install --upgrade pip setuptools wheel
-            "$PYTHON_BIN" -m pip install -r "$BACKEND_DIR/requirements.txt"
+            "$PYTHON_BIN" -m pip install -r "$SOURCE_BACKEND/requirements.txt"
 
-            # Миграции и статика
-            cd "$BACKEND_DIR"
+            # The panel runs Django from APP_ROOT, while Git lives in myapp.
+            # Copy application code without touching persistent production data.
+            rsync -a \
+              --exclude='.env' \
+              --exclude='db.sqlite3' \
+              --exclude='media/' \
+              --exclude='static/' \
+              --exclude='staticfiles/' \
+              --exclude='logs/' \
+              --exclude='tmp/' \
+              "$SOURCE_BACKEND/" "$APP_ROOT/"
+
+            # Run Django maintenance against the active application.
+            cd "$APP_ROOT"
             "$PYTHON_BIN" manage.py check
             "$PYTHON_BIN" manage.py migrate --noinput
             "$PYTHON_BIN" manage.py collectstatic --noinput --clear
 
-            # Nginx должен иметь право прохода к собранной статике и media.
-            mkdir -p "$BACKEND_DIR/staticfiles" "$BACKEND_DIR/media"
-            chmod a+rx "$DEPLOY_ROOT" "$BACKEND_DIR"
-            chmod -R u+rwX,go+rX "$BACKEND_DIR/staticfiles" "$BACKEND_DIR/media"
+            # Nginx serves APP_ROOT/static and APP_ROOT/media directly.
+            rsync -a "$APP_ROOT/staticfiles/" "$APP_ROOT/static/"
+            chmod 755 "$APP_ROOT"
+            chmod -R u+rwX,go+rX "$APP_ROOT/static" "$APP_ROOT/staticfiles" "$APP_ROOT/media"
 
-            # Создаём ссылки в web-root, только если там ещё нет файлов/каталогов.
-            [[ -e "$DEPLOY_ROOT/static" || -L "$DEPLOY_ROOT/static" ]] || ln -s backend/staticfiles "$DEPLOY_ROOT/static"
-            [[ -e "$DEPLOY_ROOT/media" || -L "$DEPLOY_ROOT/media" ]] || ln -s backend/media "$DEPLOY_ROOT/media"
-
-            echo "Static/media paths after deploy:"
-            ls -ld "$DEPLOY_ROOT" "$BACKEND_DIR" "$BACKEND_DIR/staticfiles" "$BACKEND_DIR/media" "$DEPLOY_ROOT/static" "$DEPLOY_ROOT/media" 2>&1 || true
-
-            # Перезапустить Passenger
-            mkdir -p "$BACKEND_DIR/tmp"
-            touch "$BACKEND_DIR/tmp/restart.txt"
+            # Restart Passenger.
+            mkdir -p "$APP_ROOT/tmp"
+            touch "$APP_ROOT/tmp/restart.txt"
 
             # Даём Passenger несколько секунд на перезапуск и печатаем диагностику.
             sleep 5
