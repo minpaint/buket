@@ -15,14 +15,23 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.uploadedfile import SimpleUploadedFile
 
-from .models import StoreManager, TelegramBotSession
-from .serializers import BotProductCreateSerializer, StoreManagerSerializer
+from .models import Store, StoreManager, TelegramBotSession
+from .serializers import BotProductCreateSerializer, StoreManagerSerializer, StoreSerializer
 
 
 def ensure_telegram_bot_path() -> Path:
-    bot_root = Path(__file__).resolve().parent.parent.parent / 'telegram-bot'
-    if not bot_root.exists():
-        raise ImproperlyConfigured(f'Telegram bot directory was not found: {bot_root}')
+    backend_root = Path(__file__).resolve().parent.parent
+    candidates = (
+        # Normal repository layout: myapp/backend + myapp/telegram-bot.
+        backend_root.parent / 'telegram-bot',
+        # hoster.by runs a flattened backend from the site root while keeping
+        # the Git checkout in site-root/myapp.
+        backend_root / 'myapp' / 'telegram-bot',
+    )
+    bot_root = next((path for path in candidates if path.is_dir()), None)
+    if bot_root is None:
+        searched = ', '.join(str(path) for path in candidates)
+        raise ImproperlyConfigured(f'Telegram bot directory was not found. Searched: {searched}')
 
     bot_root_str = str(bot_root)
     if bot_root_str not in sys.path:
@@ -104,6 +113,16 @@ class DjangoBotApiClient:
 
     @sync_to_async(thread_sensitive=True)
     def _auth_manager(self, telegram_id: int) -> dict | None:
+        if getattr(settings, 'TELEGRAM_BOT_ALLOW_ALL_USERS', False):
+            stores = Store.objects.filter(is_active=True).order_by('sort_order', 'name')
+            return {
+                'telegram_id': telegram_id,
+                'telegram_username': '',
+                'full_name': 'Временный общий доступ',
+                'is_active': True,
+                'stores': StoreSerializer(stores, many=True).data,
+            }
+
         manager = StoreManager.objects.filter(telegram_id=telegram_id, is_active=True).first()
         if not manager:
             return None
@@ -211,4 +230,3 @@ async def process_telegram_update(update_data: dict) -> None:
         await dispatcher.feed_update(bot, update)
     finally:
         await bot.session.close()
-
