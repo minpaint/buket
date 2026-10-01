@@ -19,7 +19,10 @@ jobs:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.HOSTER_HOST }}
+          # The hosting panel migrated the site to a new address; the old
+          # HOSTER_HOST secret now times out. The domain always resolves to
+          # the active production server.
+          host: buket.by
           username: ${{ secrets.HOSTER_USER }}
           key: ${{ secrets.HOSTER_SSH_KEY }}
           port: 22
