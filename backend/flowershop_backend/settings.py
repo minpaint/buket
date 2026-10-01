@@ -10,7 +10,13 @@ import os
 # pip install python-dotenv
 try:
     from dotenv import load_dotenv
-    load_dotenv(Path(__file__).resolve().parent.parent / '.env')
+    _backend_dir = Path(__file__).resolve().parent.parent
+    load_dotenv(_backend_dir / '.env')
+
+    # The project historically kept the Telegram token in a separate bot env.
+    # Webhook mode runs inside Django, so make those values available there too
+    # without overriding anything explicitly configured for the backend.
+    load_dotenv(_backend_dir.parent / 'telegram-bot' / '.env', override=False)
 except ImportError:
     pass  # dotenv необязателен — переменные можно задать через ОС
 
@@ -209,8 +215,8 @@ else:
 # ── Telegram ───────────────────────────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.getenv('BOT_TOKEN', '').strip()
 TELEGRAM_BOT_SECRET = os.getenv('TELEGRAM_BOT_SECRET', os.getenv('BOT_SECRET', '')).strip()
-TELEGRAM_BOT_ALLOW_ALL_USERS = os.getenv('TELEGRAM_BOT_ALLOW_ALL_USERS', 'False') == 'True'
 TELEGRAM_BOT_MODE = os.getenv('TELEGRAM_BOT_MODE', 'polling').strip().lower()
+TELEGRAM_BOT_ALLOW_ALL_USERS = os.getenv('TELEGRAM_BOT_ALLOW_ALL_USERS', 'False') == 'True'
 TELEGRAM_WEBHOOK_SECRET = os.getenv('TELEGRAM_WEBHOOK_SECRET', TELEGRAM_BOT_SECRET).strip()
 TELEGRAM_WEBHOOK_URL = os.getenv('TELEGRAM_WEBHOOK_URL', '').strip()
 
