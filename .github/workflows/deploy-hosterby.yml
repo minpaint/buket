@@ -73,9 +73,10 @@ jobs:
             chmod 755 "$APP_ROOT"
             chmod -R u+rwX,go+rX "$APP_ROOT/static" "$APP_ROOT/staticfiles" "$APP_ROOT/media"
 
-            # Restart Passenger.
-            mkdir -p "$APP_ROOT/tmp"
-            touch "$APP_ROOT/tmp/restart.txt"
+            # The migrated site is managed by ISPmanager through PM2 + waitress.
+            export PATH="$APP_ROOT/.venv/bin:/usr/lib/ispnodejs/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            export PM2_HOME="$HOME/.pm2"
+            /usr/lib/ispnodejs/bin/pm2 restart buket.by
 
             # Даём Passenger несколько секунд на перезапуск и печатаем диагностику.
             sleep 5
